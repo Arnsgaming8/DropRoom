@@ -59,12 +59,26 @@ class DropRoom {
 
     init() {
         // Check if we're on the homepage, room page, or saved rooms page
+        console.log('Current pathname:', window.location.pathname);
+        console.log('Pathname ends with index.html:', window.location.pathname.endsWith('index.html'));
+        console.log('Pathname equals /:', window.location.pathname === '/');
+        
         if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+            console.log('Initializing homepage');
             this.initHomepage();
         } else if (window.location.pathname.endsWith('room.html')) {
+            console.log('Initializing room page');
             this.initRoomPage();
         } else if (window.location.pathname.endsWith('saved-rooms.html')) {
+            console.log('Initializing saved rooms page');
             this.initSavedRoomsPage();
+        } else {
+            console.log('Unknown page, checking if it might be homepage');
+            // GitHub Pages might serve index.html without the .html extension
+            if (!window.location.pathname.includes('.') || window.location.pathname.endsWith('/')) {
+                console.log('Treating as homepage');
+                this.initHomepage();
+            }
         }
     }
 
