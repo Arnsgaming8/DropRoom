@@ -8,10 +8,10 @@ class DropRoom {
             this.apiBaseUrl = 'http://localhost:3000';
         } else if (window.location.hostname.includes('github.io')) {
             // Production GitHub Pages - use deployed backend
-            this.apiBaseUrl = 'https://droproom-backend.onrender.com'; // Your actual backend URL
+            this.apiBaseUrl = 'https://droproom-c3d3b4e3-4bb4-4cf5-b747-a4d95914af64.up.railway.app'; // Your Railway backend URL
         } else {
             // Custom domain or other environment
-            this.apiBaseUrl = 'https://droproom-backend.onrender.com'; // Your actual backend URL
+            this.apiBaseUrl = 'https://droproom-c3d3b4e3-4bb4-4cf5-b747-a4d95914af64.up.railway.app'; // Your Railway backend URL
         }
         
         console.log('API Base URL:', this.apiBaseUrl);
