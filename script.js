@@ -392,6 +392,11 @@ class DropRoom {
                 </button>
             ` : '';
             
+            console.log('Displaying file:', file.name);
+            console.log('File uploader ID:', file.uploaderId);
+            console.log('Current user ID:', this.uploaderId);
+            console.log('Is owner:', isOwner);
+            
             return `
                 <div class="file-item">
                     <div class="file-info">
