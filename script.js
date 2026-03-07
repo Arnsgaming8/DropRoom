@@ -15,6 +15,7 @@ class DropRoom {
         }
         
         console.log('API Base URL:', this.apiBaseUrl);
+        console.log('FORCED UPDATE: Using Railway backend - cache cleared');
         
         // Generate or get uploader ID for session tracking
         this.uploaderId = this.getOrCreateUploaderId();
