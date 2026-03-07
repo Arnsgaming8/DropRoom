@@ -2,9 +2,18 @@
 class DropRoom {
     constructor() {
         console.log('Current hostname:', window.location.hostname);
-        this.apiBaseUrl = window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')
-            ? 'http://localhost:3000' 
-            : 'https://your-backend-url.com';
+        
+        // Auto-detect API URL based on environment
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            this.apiBaseUrl = 'http://localhost:3000';
+        } else if (window.location.hostname.includes('github.io')) {
+            // Production GitHub Pages - use deployed backend
+            this.apiBaseUrl = 'https://droproom-backend.onrender.com'; // Replace with your actual backend URL
+        } else {
+            // Custom domain or other environment
+            this.apiBaseUrl = 'https://droproom-backend.onrender.com'; // Replace with your actual backend URL
+        }
+        
         console.log('API Base URL:', this.apiBaseUrl);
         
         // Generate or get uploader ID for session tracking

@@ -8,12 +8,15 @@ const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const FRONTEND_URL = process.env.FRONTEND_URL || '*';
 
 // Middleware
 app.use(cors({
-    origin: '*', // Allow all origins for GitHub Pages
+    origin: FRONTEND_URL === '*' ? '*' : [FRONTEND_URL, 'http://localhost:8000', 'http://127.0.0.1:8000'],
     methods: ['GET', 'POST', 'DELETE'],
-    allowedHeaders: ['Content-Type']
+    allowedHeaders: ['Content-Type'],
+    credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -49,7 +52,7 @@ const storage = multer.diskStorage({
 const upload = multer({ 
     storage: storage,
     limits: {
-        fileSize: 100 * 1024 * 1024 // 100MB limit
+        fileSize: parseInt(process.env.MAX_FILE_SIZE) || 100 * 1024 * 1024 // Default 100MB
     }
 });
 

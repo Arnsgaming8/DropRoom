@@ -1,0 +1,29 @@
+services:
+  # DropRoom Backend API
+  - type: web
+    name: droproom-backend
+    env: node
+    repo: https://github.com/Arnsgaming8/DropRoom.git
+    rootDir: .
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "npm start"
+    autoDeploy: true
+    healthCheckPath: /health
+    
+    # Environment variables
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    
+    # Performance settings
+    numInstances: 1
+    maxConcurrentRequests: 100
+    
+    # Storage
+    disk:
+      name: droproom-storage
+      mountPath: /opt/render/project/src/storage
+      sizeGB: 1

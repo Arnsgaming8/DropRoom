@@ -1,0 +1,34 @@
+# Node modules
+node_modules
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+LICENSE
+*.md
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Storage (will be created in container)
+storage/*
+!storage/.gitkeep
+
+# Environment files
+.env
+.env.local
+.env.production

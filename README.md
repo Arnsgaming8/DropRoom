@@ -185,4 +185,4 @@ If you encounter any issues or have questions, please open an issue on the GitHu
 
 ---
 
-**DropRoom** © 2026 - Made By Arnav Juggesur and Cascade AI. Simple, secure file sharing platform
+**DropRoom** © 2026 - Made By Arnav Jugessur and Cascade AI. Simple, secure file sharing platform

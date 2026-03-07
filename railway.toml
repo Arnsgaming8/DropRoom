@@ -1,0 +1,25 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[[services]]
+name = "droproom-backend"
+
+[services.variables]
+NODE_ENV = "production"
+PORT = "3000"
+
+[services.build]
+command = "npm install"
+
+[services.start]
+command = "npm start"
+
+[[services.ports]]
+port = 3000
+handlers = ["http"]
