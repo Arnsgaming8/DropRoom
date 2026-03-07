@@ -277,8 +277,6 @@ app.delete('/file/:roomId/:filename', (req, res) => {
         removeFileMetadata(roomId, filename);
         
         console.log(`File deleted: ${filename} from room ${roomId}`);
-        res.json({ message: 'File deleted successfully' });
-        
         res.json({
             success: true,
             message: 'File deleted successfully'
