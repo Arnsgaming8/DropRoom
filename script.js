@@ -320,7 +320,9 @@ class DropRoom {
 
         try {
             console.log(`Uploading ${file.name} to ${this.apiBaseUrl}/upload/${this.roomId}`);
-            this.showToast(`Uploading ${file.name}...`, 'info');
+            
+            // Create progress toast
+            const progressToast = this.showToast(`Uploading ${file.name}... 0%`, 'info');
             
             const response = await fetch(`${this.apiBaseUrl}/upload/${this.roomId}`, {
                 method: 'POST',
@@ -333,7 +335,13 @@ class DropRoom {
 
             const result = await response.json();
             console.log('Upload result:', result);
-            this.showToast(`${file.name} uploaded successfully!`, 'success');
+            
+            // Update progress toast to success
+            if (progressToast) {
+                progressToast.textContent = `${file.name} uploaded successfully!`;
+                progressToast.className = 'toast show success';
+            }
+            
             this.loadFiles(); // Refresh file list
             
         } catch (error) {
@@ -410,7 +418,9 @@ class DropRoom {
     }
 
     downloadFile(filename) {
-        const downloadUrl = `${this.apiBaseUrl}/download/${this.roomId}/${filename}`;
+        // URL encode the filename to handle special characters
+        const encodedFilename = encodeURIComponent(filename);
+        const downloadUrl = `${this.apiBaseUrl}/download/${this.roomId}/${encodedFilename}`;
         window.open(downloadUrl, '_blank');
     }
 
@@ -445,7 +455,10 @@ class DropRoom {
         try {
             this.showToast(`Deleting ${filename}...`, 'info');
             
-            const response = await fetch(`${this.apiBaseUrl}/file/${this.roomId}/${filename}`, {
+            // URL encode the filename to handle special characters
+            const encodedFilename = encodeURIComponent(filename);
+            
+            const response = await fetch(`${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'

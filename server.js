@@ -252,41 +252,32 @@ app.get('/file/:roomId/:filename', (req, res) => {
 app.delete('/file/:roomId/:filename', (req, res) => {
     try {
         const roomId = req.params.roomId;
-        const filename = req.params.filename;
-        const uploaderId = req.body.uploaderId;
+        // URL decode the filename
+        const filename = decodeURIComponent(req.params.filename);
+        const { uploaderId } = req.body;
         
-        if (!uploaderId) {
-            return res.status(400).json({ error: 'Uploader ID required' });
-        }
+        console.log(`Delete request: ${filename} from room ${roomId} by ${uploaderId}`);
         
         const filePath = path.join(STORAGE_DIR, roomId, filename);
         
         if (!fs.existsSync(filePath)) {
             return res.status(404).json({ error: 'File not found' });
         }
-        
-        // Check ownership
-        const metadata = getFileMetadata(roomId, filename);
-        if (!metadata || metadata.uploaderId !== uploaderId) {
-            return res.status(403).json({ error: 'Only the uploader can delete this file' });
+
+        // Check if the user is the uploader
+        const fileMetadata = getFileMetadata(roomId, filename);
+        if (fileMetadata && fileMetadata.uploaderId !== uploaderId) {
+            return res.status(403).json({ error: 'You can only delete your own files' });
         }
-        
+
         // Delete the file
         fs.unlinkSync(filePath);
         
         // Remove from metadata
-        const metadataPath = getMetadataPath(roomId);
-        if (fs.existsSync(metadataPath)) {
-            try {
-                const allMetadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
-                delete allMetadata[filename];
-                fs.writeFileSync(metadataPath, JSON.stringify(allMetadata, null, 2));
-            } catch (error) {
-                console.error('Error updating metadata:', error);
-            }
-        }
+        removeFileMetadata(roomId, filename);
         
-        console.log(`File deleted: ${filename} from room ${roomId} by ${uploaderId}`);
+        console.log(`File deleted: ${filename} from room ${roomId}`);
+        res.json({ message: 'File deleted successfully' });
         
         res.json({
             success: true,
@@ -303,7 +294,8 @@ app.delete('/file/:roomId/:filename', (req, res) => {
 app.get('/download/:roomId/:filename', (req, res) => {
     try {
         const roomId = req.params.roomId;
-        const filename = req.params.filename;
+        // URL decode the filename
+        const filename = decodeURIComponent(req.params.filename);
         const filePath = path.join(STORAGE_DIR, roomId, filename);
         
         if (!fs.existsSync(filePath)) {
