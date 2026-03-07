@@ -13,7 +13,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || '*';
 
 // Middleware
 app.use(cors({
-    origin: FRONTEND_URL === '*' ? '*' : [FRONTEND_URL, 'http://localhost:8000', 'http://127.0.0.1:8000'],
+    origin: FRONTEND_URL === '*' ? '*' : [FRONTEND_URL, 'http://localhost:8000', 'http://127.0.0.1:8000', 'https://arnsgaming8.github.io'],
     methods: ['GET', 'POST', 'DELETE'],
     allowedHeaders: ['Content-Type'],
     credentials: true
