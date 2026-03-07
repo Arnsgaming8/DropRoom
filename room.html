@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DropRoom - Room</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">DropRoom</h1>
+        </div>
+    </header>
+    
+    <main class="main">
+        <div class="container">
+            <div class="room-header">
+                <div class="room-info">
+                    <h2 class="room-title">Room ID: <span id="room-id"></span></h2>
+                    <div class="room-actions">
+                        <button id="share-room-btn" class="btn-secondary">
+                            Share Room
+                        </button>
+                        <button id="save-room-btn" class="btn-secondary">
+                            Save Room
+                        </button>
+                        <a href="index.html" class="btn-primary home-btn">
+                            Home
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="upload-section">
+                <div id="drop-zone" class="drop-zone">
+                    <div class="drop-zone-content">
+                        <div class="drop-icon">📁</div>
+                        <h3>Drag & Drop Files Here</h3>
+                        <p>or</p>
+                        <button id="browse-btn" class="btn-secondary">Browse Files</button>
+                        <input type="file" id="file-input" multiple style="display: none;">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="files-section">
+                <h3 class="section-title">Uploaded Files</h3>
+                <div id="files-list" class="files-list">
+                    <div class="empty-state">
+                        <p>No files uploaded yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 DropRoom. Simple, secure file sharing.</p>
+        </div>
+    </footer>
+    
+    <script src="script.js"></script>
+</body>
+</html>

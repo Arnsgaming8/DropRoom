@@ -1,0 +1,72 @@
+MIT License
+
+Copyright (c) 2026 DropRoom
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+DropRoom - Private File Sharing Platform
+
+This license governs the use of the DropRoom software, including:
+- Frontend web application (HTML, CSS, JavaScript)
+- Backend API server (Node.js, Express)
+- All associated documentation and configuration files
+
+What you can do:
+✓ Use for personal and commercial projects
+✓ Modify and customize the code
+✓ Distribute modified versions
+✓ Include in proprietary software
+✓ Use for educational purposes
+
+What you must do:
+• Include the copyright notice in all copies
+• Include the license text in all copies
+• Keep the attribution to DropRoom
+
+What you cannot do:
+• Hold the authors liable for any damages
+• Claim the software as your own original work
+• Remove copyright notices
+
+For more information, visit: https://opensource.org/licenses/MIT
+
+---
+
+Third-Party Licenses
+
+This software uses the following third-party components with their respective licenses:
+
+- Express.js (MIT License)
+- Multer (MIT License)
+- CORS (MIT License)
+- MIME Types (MIT License)
+- UUID (MIT License)
+
+All third-party components are compatible with the MIT License used for DropRoom.
+
+---
+
+Contact
+
+For questions about licensing or commercial use, please create an issue in the
+GitHub repository or contact the project maintainers.
+
+Last updated: March 7, 2026
