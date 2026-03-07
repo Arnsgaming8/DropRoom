@@ -206,7 +206,7 @@ body {
 }
 
 .drop-zone-content {
-    pointer-events: none;
+    pointer-events: auto;
     position: relative;
     z-index: 1;
 }
