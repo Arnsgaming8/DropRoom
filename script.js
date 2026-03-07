@@ -74,14 +74,19 @@ class DropRoom {
         
         console.log('Homepage init - createRoomBtn:', createRoomBtn);
         console.log('Homepage init - savedRoomsBtn:', savedRoomsBtn);
+        console.log('API Base URL:', this.apiBaseUrl);
         
         if (createRoomBtn) {
-            createRoomBtn.addEventListener('click', () => this.createRoom());
+            createRoomBtn.addEventListener('click', () => {
+                console.log('Create room button clicked!');
+                this.createRoom();
+            });
             console.log('Create room button event added');
         }
         
         if (savedRoomsBtn) {
             savedRoomsBtn.addEventListener('click', () => {
+                console.log('Saved rooms button clicked!');
                 window.location.href = 'saved-rooms.html';
             });
             console.log('Saved rooms button event added');
@@ -229,7 +234,10 @@ class DropRoom {
     }
 
     createRoom() {
+        console.log('createRoom() called');
         const roomId = this.generateRoomId();
+        console.log('Generated room ID:', roomId);
+        console.log('Redirecting to:', `room.html?room=${roomId}`);
         window.location.href = `room.html?room=${roomId}`;
     }
 
