@@ -97,6 +97,28 @@ function getFileMetadata(roomId, filename) {
     }
 }
 
+function removeFileMetadata(roomId, filename) {
+    const metadataPath = getMetadataPath(roomId);
+    
+    if (!fs.existsSync(metadataPath)) {
+        return;
+    }
+    
+    try {
+        const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+        
+        // Remove the file from metadata
+        delete metadata[filename];
+        
+        // Write back the updated metadata
+        fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+        
+        console.log(`Removed metadata for ${filename} in room ${roomId}`);
+    } catch (error) {
+        console.error('Error removing file metadata:', error);
+    }
+}
+
 // Helper function to get file metadata with uploader info
 function getFileWithUploaderInfo(roomId, filename, filePath) {
     try {
