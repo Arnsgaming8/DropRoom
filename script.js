@@ -72,14 +72,19 @@ class DropRoom {
         const createRoomBtn = document.getElementById('create-room-btn');
         const savedRoomsBtn = document.getElementById('saved-rooms-btn');
         
+        console.log('Homepage init - createRoomBtn:', createRoomBtn);
+        console.log('Homepage init - savedRoomsBtn:', savedRoomsBtn);
+        
         if (createRoomBtn) {
             createRoomBtn.addEventListener('click', () => this.createRoom());
+            console.log('Create room button event added');
         }
         
         if (savedRoomsBtn) {
             savedRoomsBtn.addEventListener('click', () => {
                 window.location.href = 'saved-rooms.html';
             });
+            console.log('Saved rooms button event added');
         }
     }
 
@@ -485,11 +490,10 @@ class DropRoom {
     }
 }
 
-// Initialize DropRoom when DOM is loaded
+// Initialize DropRoom when DOM is ready
 let dropRoom;
+
 document.addEventListener('DOMContentLoaded', () => {
     dropRoom = new DropRoom();
+    window.dropRoom = dropRoom;
 });
-
-// Make dropRoom globally accessible for button onclick handlers
-window.dropRoom = dropRoom;
