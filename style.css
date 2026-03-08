@@ -270,7 +270,7 @@ body {
 
 .file-item:hover {
     box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
+    transform: translateY(0px);
 }
 
 .file-info {
