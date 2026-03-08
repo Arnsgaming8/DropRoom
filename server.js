@@ -5,6 +5,8 @@ const path = require('path');
 const fs = require('fs');
 const mime = require('mime-types');
 const { v4: uuidv4 } = require('uuid');
+const AWS = require('aws-sdk');
+const multerS3 = require('multer-s3');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,52 +23,93 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Storage directory with persistent storage
-// Use /app/storage for Render's persistent disk, fallback to local storage
-const STORAGE_DIR = process.env.RENDER ? '/app/storage' : path.join(__dirname, 'storage');
+// Storage Configuration
+const STORAGE_TYPE = process.env.STORAGE_TYPE || 'local';
 
-// Ensure storage directory exists
-if (!fs.existsSync(STORAGE_DIR)) {
-    fs.mkdirSync(STORAGE_DIR, { recursive: true });
-}
+// AWS S3 Configuration
+let s3;
+let upload;
 
-console.log('Storage directory initialized:', STORAGE_DIR);
-console.log('Files will be stored permanently (no expiration)');
-console.log('Using persistent storage for Render deployment');
+if (STORAGE_TYPE === 's3') {
+    // Configure AWS S3
+    s3 = new AWS.S3({
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        region: process.env.AWS_REGION || 'us-east-1'
+    });
 
-// Multer configuration for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const roomId = req.params.roomId;
-        const roomDir = path.join(STORAGE_DIR, roomId);
-        
-        // Create room directory if it doesn't exist
-        if (!fs.existsSync(roomDir)) {
-            fs.mkdirSync(roomDir, { recursive: true });
+    // Configure multer for S3 uploads
+    upload = multer({
+        storage: multerS3({
+            s3: s3,
+            bucket: process.env.AWS_S3_BUCKET,
+            metadata: function (req, file, cb) {
+                cb(null, { fieldName: file.fieldname });
+            },
+            key: function (req, file, cb) {
+                const roomId = req.params.roomId || 'unknown';
+                const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+                const uniqueKey = `${roomId}/${Date.now()}-${safeName}`;
+                cb(null, uniqueKey);
+            }
+        }),
+        limits: {
+            fileSize: parseInt(process.env.MAX_FILE_SIZE) || 500 * 1024 * 1024 // Default 500MB
         }
-        
-        cb(null, roomDir);
-    },
-    filename: (req, file, cb) => {
-        // Keep original filename but ensure it's safe
-        const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-        cb(null, safeName);
-    }
-});
+    });
 
-const upload = multer({ 
-    storage: storage,
-    limits: {
-        fileSize: parseInt(process.env.MAX_FILE_SIZE) || 500 * 1024 * 1024 // Default 500MB
+    console.log('AWS S3 storage initialized');
+    console.log('Bucket:', process.env.AWS_S3_BUCKET);
+    console.log('Region:', process.env.AWS_REGION || 'us-east-1');
+} else {
+    // Local storage fallback
+    const STORAGE_DIR = path.join(__dirname, 'storage');
+    
+    if (!fs.existsSync(STORAGE_DIR)) {
+        fs.mkdirSync(STORAGE_DIR, { recursive: true });
     }
-});
+    
+    const storage = multer.diskStorage({
+        destination: (req, file, cb) => {
+            const roomId = req.params.roomId || 'unknown';
+            const roomDir = path.join(STORAGE_DIR, roomId);
+            
+            if (!fs.existsSync(roomDir)) {
+                fs.mkdirSync(roomDir, { recursive: true });
+            }
+            
+            cb(null, roomDir);
+        },
+        filename: (req, file, cb) => {
+            const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+            cb(null, safeName);
+        }
+    });
 
-// Helper function to manage uploader metadata
-function getMetadataPath(roomId) {
-    return path.join(STORAGE_DIR, roomId, 'metadata.json');
+    upload = multer({ 
+        storage: storage,
+        limits: {
+            fileSize: parseInt(process.env.MAX_FILE_SIZE) || 500 * 1024 * 1024 // Default 500MB
+        }
+    });
+
+    console.log('Local storage initialized:', STORAGE_DIR);
 }
 
-function saveFileMetadata(roomId, filename, uploaderId) {
+console.log(`Storage type: ${STORAGE_TYPE}`);
+console.log('Files will be stored permanently in the cloud');
+
+// Metadata storage (still use local for metadata)
+const METADATA_DIR = path.join(__dirname, 'metadata');
+if (!fs.existsSync(METADATA_DIR)) {
+    fs.mkdirSync(METADATA_DIR, { recursive: true });
+}
+
+function getMetadataPath(roomId) {
+    return path.join(METADATA_DIR, `${roomId}.json`);
+}
+
+function saveFileMetadata(roomId, filename, uploaderId, s3Key = null) {
     const metadataPath = getMetadataPath(roomId);
     let metadata = {};
     
@@ -81,10 +124,31 @@ function saveFileMetadata(roomId, filename, uploaderId) {
     metadata[filename] = {
         uploaderId: uploaderId,
         uploadedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        s3Key: s3Key // Store S3 key if using S3
     };
     
     fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+}
+
+function removeFileMetadata(roomId, filename) {
+    const metadataPath = getMetadataPath(roomId);
+    
+    if (!fs.existsSync(metadataPath)) {
+        return;
+    }
+    
+    try {
+        const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+        
+        delete metadata[filename];
+        
+        fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+        
+        console.log(`Removed metadata for ${filename} in room ${roomId}`);
+    } catch (error) {
+        console.error('Error removing file metadata:', error);
+    }
 }
 
 function getFileMetadata(roomId, filename) {
@@ -103,53 +167,53 @@ function getFileMetadata(roomId, filename) {
     }
 }
 
-function removeFileMetadata(roomId, filename) {
-    const metadataPath = getMetadataPath(roomId);
-    
-    if (!fs.existsSync(metadataPath)) {
-        return;
-    }
-    
+function getFileWithUploaderInfo(roomId, filename, filePath, s3Key = null) {
     try {
-        const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+        let stats;
         
-        // Remove the file from metadata
-        delete metadata[filename];
+        if (STORAGE_TYPE === 's3') {
+            // For S3, we'll use metadata for file info
+            stats = { size: 0, mtime: new Date() }; // Placeholder
+        } else {
+            stats = fs.statSync(filePath);
+        }
         
-        // Write back the updated metadata
-        fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
-        
-        console.log(`Removed metadata for ${filename} in room ${roomId}`);
-    } catch (error) {
-        console.error('Error removing file metadata:', error);
-    }
-}
-
-// Helper function to get file metadata with uploader info
-function getFileWithUploaderInfo(roomId, filename, filePath) {
-    try {
-        const stats = fs.statSync(filePath);
         const mimeType = mime.lookup(filename) || 'application/octet-stream';
         const metadata = getFileMetadata(roomId, filename);
         
         return {
             name: filename,
             size: stats.size,
-            lastModified: stats.mtime,
             mimeType: mimeType,
-            uploaderId: metadata ? metadata.uploaderId : null,
-            uploadedAt: metadata ? metadata.uploadedAt : null,
-            previewUrl: `${req.protocol}://${req.get('host')}/file/${roomId}/${filename}`
+            lastModified: stats.mtime,
+            uploadedAt: metadata?.uploadedAt || stats.mtime,
+            uploaderId: metadata?.uploaderId || null,
+            s3Key: metadata?.s3Key || s3Key,
+            previewUrl: s3Key ? `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${s3Key}` : null
         };
     } catch (error) {
-        console.error('Error getting file metadata:', error);
+        console.error('Error getting file info:', error);
         return null;
     }
 }
 
 // Routes
+app.get('/', (req, res) => {
+    res.json({
+        message: 'DropRoom Backend API',
+        version: '1.0.0',
+        storage: STORAGE_TYPE,
+        endpoints: {
+            upload: 'POST /upload/:roomId',
+            list: 'GET /list/:roomId',
+            file: 'GET /file/:roomId/:filename',
+            download: 'GET /download/:roomId/:filename',
+            delete: 'DELETE /file/:roomId/:filename'
+        }
+    });
+});
 
-// POST /upload/:roomId - Upload file to room
+// POST /upload/:roomId - Upload file
 app.post('/upload/:roomId', upload.single('file'), (req, res) => {
     try {
         if (!req.file) {
@@ -157,33 +221,28 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
         }
 
         const roomId = req.params.roomId;
-        const filename = req.file.filename;
-        const filePath = req.file.path;
-        const uploaderId = req.body.uploaderId || 'anonymous';
+        const uploaderId = req.body.uploaderId;
+        const filename = req.file.originalname;
         
-        // Save uploader metadata
-        saveFileMetadata(roomId, filename, uploaderId);
+        let s3Key = null;
+        if (STORAGE_TYPE === 's3') {
+            s3Key = req.file.key; // S3 key from multer-s3
+        }
         
-        // Get file metadata
-        const stats = fs.statSync(filePath);
-        const mimeType = mime.lookup(filename) || 'application/octet-stream';
+        // Save metadata
+        saveFileMetadata(roomId, filename, uploaderId, s3Key);
         
-        const fileData = {
-            name: filename,
-            originalName: req.file.originalname,
-            size: stats.size,
-            lastModified: stats.mtime,
-            mimeType: mimeType,
-            uploaderId: uploaderId,
-            uploadedAt: new Date().toISOString(),
-            previewUrl: `${req.protocol}://${req.get('host')}/file/${roomId}/${filename}`
-        };
-
         console.log(`File uploaded: ${filename} to room ${roomId} by ${uploaderId}`);
         
         res.json({
             success: true,
-            file: fileData,
+            file: {
+                name: filename,
+                size: req.file.size,
+                uploadedAt: new Date().toISOString(),
+                uploaderId: uploaderId,
+                s3Key: s3Key
+            },
             message: 'File uploaded successfully'
         });
 
@@ -197,39 +256,71 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
 app.get('/list/:roomId', (req, res) => {
     try {
         const roomId = req.params.roomId;
-        const roomDir = path.join(STORAGE_DIR, roomId);
+        const metadataPath = getMetadataPath(roomId);
         
-        if (!fs.existsSync(roomDir)) {
-            return res.json([]); // Return empty array if room doesn't exist
+        if (!fs.existsSync(metadataPath)) {
+            return res.json([]);
         }
 
-        const files = fs.readdirSync(roomDir);
+        let metadata;
+        try {
+            metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+        } catch (error) {
+            console.error('Error reading metadata:', error);
+            return res.json([]);
+        }
+
         const fileList = [];
-
-        files.forEach(filename => {
-            const filePath = path.join(roomDir, filename);
-            const stats = fs.statSync(filePath);
-            
-            if (stats.isFile() && filename !== 'metadata.json') {
-                const mimeType = mime.lookup(filename) || 'application/octet-stream';
-                const metadata = getFileMetadata(roomId, filename);
-                
-                fileList.push({
-                    name: filename,
-                    size: stats.size,
-                    lastModified: stats.mtime,
-                    mimeType: mimeType,
-                    uploaderId: metadata ? metadata.uploaderId : null,
-                    uploadedAt: metadata ? metadata.uploadedAt : null,
-                    previewUrl: `${req.protocol}://${req.get('host')}/file/${roomId}/${filename}`
-                });
-            }
-        });
-
-        // Sort files by last modified date (newest first)
-        fileList.sort((a, b) => new Date(b.uploadedAt || b.lastModified) - new Date(a.uploadedAt || a.lastModified));
         
-        res.json(fileList);
+        if (STORAGE_TYPE === 's3') {
+            // List files from S3
+            const s3Params = {
+                Bucket: process.env.AWS_S3_BUCKET,
+                Prefix: `${roomId}/`
+            };
+            
+            s3.listObjectsV2(s3Params, (err, data) => {
+                if (err) {
+                    console.error('S3 list error:', err);
+                    return res.status(500).json({ error: 'Failed to list files' });
+                }
+                
+                if (data.Contents) {
+                    data.Contents.forEach(obj => {
+                        const filename = obj.Key.replace(`${roomId}/`, '').replace(/^\d+-/, '');
+                        const fileData = getFileWithUploaderInfo(roomId, filename, null, obj.Key);
+                        if (fileData) {
+                            fileList.push(fileData);
+                        }
+                    });
+                }
+                
+                fileList.sort((a, b) => new Date(b.uploadedAt || b.lastModified) - new Date(a.uploadedAt || a.lastModified));
+                res.json(fileList);
+            });
+        } else {
+            // List files from local storage
+            const roomDir = path.join(__dirname, 'storage', roomId);
+            
+            if (!fs.existsSync(roomDir)) {
+                return res.json([]);
+            }
+
+            const files = fs.readdirSync(roomDir);
+            
+            files.forEach(filename => {
+                if (filename !== 'metadata.json') {
+                    const filePath = path.join(roomDir, filename);
+                    const fileData = getFileWithUploaderInfo(roomId, filename, filePath);
+                    if (fileData) {
+                        fileList.push(fileData);
+                    }
+                }
+            });
+            
+            fileList.sort((a, b) => new Date(b.uploadedAt || b.lastModified) - new Date(a.uploadedAt || a.lastModified));
+            res.json(fileList);
+        }
 
     } catch (error) {
         console.error('List files error:', error);
@@ -241,33 +332,56 @@ app.get('/list/:roomId', (req, res) => {
 app.get('/file/:roomId/:filename', (req, res) => {
     try {
         const roomId = req.params.roomId;
-        // URL decode the filename
         const filename = decodeURIComponent(req.params.filename);
-        const filePath = path.join(STORAGE_DIR, roomId, filename);
+        const metadata = getFileMetadata(roomId, filename);
         
-        if (!fs.existsSync(filePath)) {
+        if (!metadata) {
             return res.status(404).json({ error: 'File not found' });
         }
-
-        // Determine MIME type
-        const mimeType = mime.lookup(filename) || 'application/octet-stream';
         
-        // Set headers for inline viewing
-        res.setHeader('Content-Type', mimeType);
-        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-        res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-        
-        // Send file
-        res.sendFile(filePath, (err) => {
-            if (err) {
-                console.error('File serve error:', err);
-                if (!res.headersSent) {
-                    res.status(500).json({ error: 'Failed to serve file' });
+        if (STORAGE_TYPE === 's3' && metadata.s3Key) {
+            // Serve file from S3
+            const s3Params = {
+                Bucket: process.env.AWS_S3_BUCKET,
+                Key: metadata.s3Key
+            };
+            
+            s3.getObject(s3Params, (err, data) => {
+                if (err) {
+                    console.error('S3 get error:', err);
+                    return res.status(404).json({ error: 'File not found' });
                 }
-            } else {
-                console.log(`File served: ${filename} from room ${roomId}`);
+                
+                res.setHeader('Content-Type', data.ContentType);
+                res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+                res.setHeader('Cache-Control', 'public, max-age=3600');
+                res.send(data.Body);
+            });
+        } else {
+            // Serve file from local storage
+            const filePath = path.join(__dirname, 'storage', roomId, filename);
+            
+            if (!fs.existsSync(filePath)) {
+                return res.status(404).json({ error: 'File not found' });
             }
-        });
+
+            const mimeType = mime.lookup(filename) || 'application/octet-stream';
+            
+            res.setHeader('Content-Type', mimeType);
+            res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            
+            res.sendFile(filePath, (err) => {
+                if (err) {
+                    console.error('File serve error:', err);
+                    if (!res.headersSent) {
+                        res.status(500).json({ error: 'Failed to serve file' });
+                    }
+                } else {
+                    console.log(`File served: ${filename} from room ${roomId}`);
+                }
+            });
+        }
 
     } catch (error) {
         console.error('File serve error:', error);
@@ -277,82 +391,135 @@ app.get('/file/:roomId/:filename', (req, res) => {
     }
 });
 
-// DELETE /file/:roomId/:filename - Delete file with ownership verification
-app.delete('/file/:roomId/:filename', (req, res) => {
-    try {
-        const roomId = req.params.roomId;
-        // URL decode the filename
-        const filename = decodeURIComponent(req.params.filename);
-        const { uploaderId } = req.body;
-        
-        console.log(`Delete request: ${filename} from room ${roomId} by ${uploaderId}`);
-        
-        const filePath = path.join(STORAGE_DIR, roomId, filename);
-        
-        if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ error: 'File not found' });
-        }
-
-        // Check if the user is the uploader
-        const fileMetadata = getFileMetadata(roomId, filename);
-        if (fileMetadata && fileMetadata.uploaderId !== uploaderId) {
-            return res.status(403).json({ error: 'You can only delete your own files' });
-        }
-
-        // Delete the file
-        fs.unlinkSync(filePath);
-        
-        // Remove from metadata
-        removeFileMetadata(roomId, filename);
-        
-        console.log(`File deleted: ${filename} from room ${roomId}`);
-        res.json({
-            success: true,
-            message: 'File deleted successfully'
-        });
-        
-    } catch (error) {
-        console.error('Delete file error:', error);
-        res.status(500).json({ error: 'Failed to delete file' });
-    }
-});
-
 // GET /download/:roomId/:filename - Download file
 app.get('/download/:roomId/:filename', (req, res) => {
     try {
         const roomId = req.params.roomId;
-        // URL decode the filename
         const filename = decodeURIComponent(req.params.filename);
-        const filePath = path.join(STORAGE_DIR, roomId, filename);
+        const metadata = getFileMetadata(roomId, filename);
         
-        if (!fs.existsSync(filePath)) {
+        if (!metadata) {
             return res.status(404).json({ error: 'File not found' });
         }
-
-        // Determine MIME type
-        const mimeType = mime.lookup(filename) || 'application/octet-stream';
         
-        // Set headers to force download
-        res.setHeader('Content-Type', mimeType);
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-        
-        // Send file
-        res.sendFile(filePath, (err) => {
-            if (err) {
-                console.error('File download error:', err);
-                if (!res.headersSent) {
-                    res.status(500).json({ error: 'Failed to download file' });
+        if (STORAGE_TYPE === 's3' && metadata.s3Key) {
+            // Download from S3
+            const s3Params = {
+                Bucket: process.env.AWS_S3_BUCKET,
+                Key: metadata.s3Key
+            };
+            
+            s3.getObject(s3Params, (err, data) => {
+                if (err) {
+                    console.error('S3 download error:', err);
+                    return res.status(404).json({ error: 'File not found' });
                 }
-            } else {
-                console.log(`File downloaded: ${filename} from room ${roomId}`);
+                
+                res.setHeader('Content-Type', data.ContentType);
+                res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+                res.setHeader('Cache-Control', 'public, max-age=3600');
+                res.send(data.Body);
+            });
+        } else {
+            // Download from local storage
+            const filePath = path.join(__dirname, 'storage', roomId, filename);
+            
+            if (!fs.existsSync(filePath)) {
+                return res.status(404).json({ error: 'File not found' });
             }
-        });
+
+            const mimeType = mime.lookup(filename) || 'application/octet-stream';
+            
+            res.setHeader('Content-Type', mimeType);
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            
+            res.sendFile(filePath, (err) => {
+                if (err) {
+                    console.error('File download error:', err);
+                    if (!res.headersSent) {
+                        res.status(500).json({ error: 'Failed to download file' });
+                    }
+                } else {
+                    console.log(`File downloaded: ${filename} from room ${roomId}`);
+                }
+            });
+        }
 
     } catch (error) {
         console.error('Download file error:', error);
         if (!res.headersSent) {
             res.status(500).json({ error: 'Failed to download file' });
+        }
+    }
+});
+
+// DELETE /file/:roomId/:filename - Delete file
+app.delete('/file/:roomId/:filename', (req, res) => {
+    try {
+        const roomId = req.params.roomId;
+        const filename = decodeURIComponent(req.params.filename);
+        const { uploaderId } = req.body;
+        
+        console.log(`Delete request: ${filename} from room ${roomId} by ${uploaderId}`);
+        
+        const metadata = getFileMetadata(roomId, filename);
+        if (!metadata) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        // Check if the user is the uploader
+        if (metadata.uploaderId !== uploaderId) {
+            return res.status(403).json({ error: 'You can only delete your own files' });
+        }
+
+        if (STORAGE_TYPE === 's3' && metadata.s3Key) {
+            // Delete from S3
+            const s3Params = {
+                Bucket: process.env.AWS_S3_BUCKET,
+                Key: metadata.s3Key
+            };
+            
+            s3.deleteObject(s3Params, (err, data) => {
+                if (err) {
+                    console.error('S3 delete error:', err);
+                    return res.status(500).json({ error: 'Failed to delete file' });
+                }
+                
+                // Remove from metadata
+                removeFileMetadata(roomId, filename);
+                
+                console.log(`File deleted: ${filename} from room ${roomId}`);
+                res.json({
+                    success: true,
+                    message: 'File deleted successfully'
+                });
+            });
+        } else {
+            // Delete from local storage
+            const filePath = path.join(__dirname, 'storage', roomId, filename);
+            
+            if (!fs.existsSync(filePath)) {
+                return res.status(404).json({ error: 'File not found' });
+            }
+
+            // Delete the file
+            fs.unlinkSync(filePath);
+            
+            // Remove from metadata
+            removeFileMetadata(roomId, filename);
+            
+            console.log(`File deleted: ${filename} from room ${roomId}`);
+            res.json({
+                success: true,
+                message: 'File deleted successfully'
+            });
+        }
+        
+    } catch (error) {
+        console.error('Delete file error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to delete file' });
         }
     }
 });
