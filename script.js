@@ -354,16 +354,28 @@ class DropRoom {
             
             // Handle completion
             xhr.addEventListener('load', () => {
+                console.log('Upload completed with status:', xhr.status);
+                console.log('Upload response:', xhr.responseText);
+                
                 if (xhr.status === 200) {
-                    const result = JSON.parse(xhr.responseText);
-                    console.log('Upload result:', result);
-                    
-                    // Update progress toast to success
-                    progressToast.textContent = `${file.name} uploaded successfully!`;
-                    progressToast.className = 'toast show success';
-                    
-                    this.loadFiles(); // Refresh file list
+                    try {
+                        const result = JSON.parse(xhr.responseText);
+                        console.log('Upload result:', result);
+                        
+                        // Update progress toast to success
+                        progressToast.textContent = `${file.name} uploaded successfully!`;
+                        progressToast.className = 'toast show success';
+                        
+                        console.log('About to call loadFiles after upload...');
+                        this.loadFiles(); // Refresh file list
+                    } catch (parseError) {
+                        console.error('Failed to parse upload response:', parseError);
+                        console.error('Raw response:', xhr.responseText);
+                        throw new Error('Invalid upload response');
+                    }
                 } else {
+                    console.error('Upload failed with status:', xhr.status);
+                    console.error('Response:', xhr.responseText);
                     throw new Error(`HTTP ${xhr.status}: ${xhr.statusText}`);
                 }
             });
