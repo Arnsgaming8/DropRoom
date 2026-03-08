@@ -232,13 +232,15 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
         
         let cloudinaryData = null;
         if (STORAGE_TYPE === 'cloudinary') {
+            console.log('Cloudinary upload response:', req.file);
             cloudinaryData = {
-                public_id: req.file.public_id,
-                secure_url: req.file.secure_url,
-                format: req.file.format,
-                bytes: req.file.bytes,
-                created_at: req.file.created_at
+                public_id: req.file.public_id || req.file.filename,
+                secure_url: req.file.secure_url || req.file.url,
+                format: req.file.format || req.file.originalname.split('.').pop(),
+                bytes: req.file.size || req.file.bytes,
+                created_at: new Date().toISOString()
             };
+            console.log('Processed cloudinary data:', cloudinaryData);
         }
         
         // Save metadata
@@ -439,6 +441,17 @@ app.delete('/file/:roomId/:filename', (req, res) => {
         }
 
         if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
+            // Check if we have the required Cloudinary data
+            if (!metadata.cloudinaryData.public_id) {
+                console.error('Missing public_id in Cloudinary data:', metadata.cloudinaryData);
+                // Remove from metadata anyway since we can't delete from Cloudinary
+                removeFileMetadata(roomId, filename);
+                return res.json({
+                    success: true,
+                    message: 'File metadata removed (Cloudinary data incomplete)'
+                });
+            }
+            
             // Delete from Cloudinary
             console.log(`Attempting to delete from Cloudinary: ${metadata.cloudinaryData.public_id}`);
             
