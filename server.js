@@ -231,11 +231,12 @@ app.get('/list/:roomId', (req, res) => {
     }
 });
 
-// GET /file/:roomId/:filename - Serve file inline
+// GET /file/:roomId/:filename - Serve file
 app.get('/file/:roomId/:filename', (req, res) => {
     try {
         const roomId = req.params.roomId;
-        const filename = req.params.filename;
+        // URL decode the filename
+        const filename = decodeURIComponent(req.params.filename);
         const filePath = path.join(STORAGE_DIR, roomId, filename);
         
         if (!fs.existsSync(filePath)) {
@@ -245,7 +246,7 @@ app.get('/file/:roomId/:filename', (req, res) => {
         // Determine MIME type
         const mimeType = mime.lookup(filename) || 'application/octet-stream';
         
-        // Set headers to serve file inline (opens in browser)
+        // Set headers for inline viewing
         res.setHeader('Content-Type', mimeType);
         res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
         res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
@@ -253,7 +254,7 @@ app.get('/file/:roomId/:filename', (req, res) => {
         // Send file
         res.sendFile(filePath, (err) => {
             if (err) {
-                console.error('File send error:', err);
+                console.error('File serve error:', err);
                 if (!res.headersSent) {
                     res.status(500).json({ error: 'Failed to serve file' });
                 }
@@ -263,7 +264,7 @@ app.get('/file/:roomId/:filename', (req, res) => {
         });
 
     } catch (error) {
-        console.error('Serve file error:', error);
+        console.error('File serve error:', error);
         if (!res.headersSent) {
             res.status(500).json({ error: 'Failed to serve file' });
         }

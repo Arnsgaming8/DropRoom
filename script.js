@@ -405,7 +405,7 @@ class DropRoom {
                         ${file.uploadedAt ? `<div class="file-upload-time">Uploaded ${this.formatUploadTime(file.uploadedAt)}</div>` : ''}
                     </div>
                     <div class="file-actions">
-                        <button class="btn-open" onclick="dropRoom.openFile('${file.previewUrl}')">
+                        <button class="btn-open" onclick="dropRoom.openFile('${file.name}')">
                             Open
                         </button>
                         <button class="btn-download" onclick="dropRoom.downloadFile('${file.name}')">
@@ -418,8 +418,11 @@ class DropRoom {
         }).join('');
     }
 
-    openFile(previewUrl) {
-        window.open(previewUrl, '_blank');
+    openFile(filename) {
+        // URL encode the filename to handle special characters
+        const encodedFilename = encodeURIComponent(filename);
+        const fileUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
+        window.open(fileUrl, '_blank');
     }
 
     downloadFile(filename) {
