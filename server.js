@@ -276,16 +276,28 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
                 resourceType = 'raw'; // For documents and other files
             }
             
-            // Use the working URL from Cloudinary response directly
-            // Cloudinary provides the correct URL, just use it as-is
-            const secureUrl = workingUrl;
+            // Use the working URL from Cloudinary but fix resource type if needed
+            let secureUrl = workingUrl;
             
-            console.log('Using Cloudinary working URL directly:', secureUrl);
+            // Fix resource type in Cloudinary's working URL
+            if (workingUrl && workingUrl.startsWith('https://res.cloudinary.com/')) {
+                // Replace wrong resource type with correct one
+                if (resourceType === 'raw' && workingUrl.includes('/image/upload/')) {
+                    secureUrl = workingUrl.replace('/image/upload/', '/raw/upload/');
+                    console.log('Fixed resource type from image to raw:', secureUrl);
+                } else if (resourceType === 'video' && workingUrl.includes('/image/upload/')) {
+                    secureUrl = workingUrl.replace('/image/upload/', '/video/upload/');
+                    console.log('Fixed resource type from image to video:', secureUrl);
+                }
+            }
+            
+            console.log('Using Cloudinary working URL with fixes:', secureUrl);
             console.log('URL analysis:', {
                 original: workingUrl,
+                fixed: secureUrl,
                 resourceType: resourceType,
                 format: format,
-                hasCorrectResourceType: !workingUrl.includes('/image/upload/') || resourceType === 'image'
+                hasCorrectResourceType: secureUrl.includes(`/${resourceType}/upload/`)
             });
             
             console.log(`Final secure_url: ${secureUrl}`);
