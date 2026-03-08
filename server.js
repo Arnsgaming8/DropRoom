@@ -276,32 +276,17 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
                 resourceType = 'raw'; // For documents and other files
             }
             
-            // Use the working URL from Cloudinary response
-            let secureUrl = workingUrl;
+            // Use the working URL from Cloudinary response directly
+            // Cloudinary provides the correct URL, just use it as-is
+            const secureUrl = workingUrl;
             
-            // If the working URL has wrong resource type, fix it
-            if (workingUrl && workingUrl.startsWith('https://res.cloudinary.com') && 
-                ((resourceType === 'raw' && workingUrl.includes('/image/upload/')) ||
-                 (resourceType === 'video' && workingUrl.includes('/image/upload/')))) {
-                
-                // Extract parts from working URL
-                const urlParts = workingUrl.split('/');
-                const cloudIndex = urlParts.indexOf('res.cloudinary.com');
-                const cloudName = urlParts[cloudIndex + 1]; // dxtujnsmb
-                const uploadIndex = urlParts.indexOf('upload');
-                const afterUpload = urlParts.slice(uploadIndex + 1); // Everything after 'upload'
-                
-                // Reconstruct URL with correct resource type
-                secureUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${afterUpload.join('/')}`;
-                console.log('Fixed resource type URL:', secureUrl);
-                console.log('URL components:', { cloudName, resourceType, afterUpload: afterUpload.join('/') });
-            } else if (!workingUrl || !workingUrl.startsWith('https://res.cloudinary.com')) {
-                // Generate proper Cloudinary URL with correct resource type
-                secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
-                console.log('Generated new URL:', secureUrl);
-            } else {
-                console.log('Using Cloudinary working URL:', secureUrl);
-            }
+            console.log('Using Cloudinary working URL directly:', secureUrl);
+            console.log('URL analysis:', {
+                original: workingUrl,
+                resourceType: resourceType,
+                format: format,
+                hasCorrectResourceType: !workingUrl.includes('/image/upload/') || resourceType === 'image'
+            });
             
             console.log(`Final secure_url: ${secureUrl}`);
             console.log(`Using resource type: ${resourceType} for format: ${format}`);
