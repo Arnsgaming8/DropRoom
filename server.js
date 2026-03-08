@@ -284,21 +284,14 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
                 if (resourceType === 'raw' && workingUrl.includes('/image/upload/')) {
                     secureUrl = workingUrl.replace('/image/upload/', '/raw/upload/');
                     console.log('Fixed resource type from image to raw:', secureUrl);
+                    console.log('Using corrected URL for PDF:', secureUrl);
                 } else if (resourceType === 'video' && workingUrl.includes('/image/upload/')) {
                     secureUrl = workingUrl.replace('/image/upload/', '/video/upload/');
                     console.log('Fixed resource type from image to video:', secureUrl);
+                    console.log('Using corrected URL for video:', secureUrl);
                 } else {
                     console.log('Using original Cloudinary URL (resource type is correct):', secureUrl);
                 }
-                
-                // Try the original URL as fallback if the corrected one doesn't work
-                console.log('Testing both URLs - original and corrected:');
-                console.log('1. Original:', workingUrl);
-                console.log('2. Corrected:', secureUrl);
-                
-                // For now, use the original URL as it might be the correct one
-                secureUrl = workingUrl;
-                console.log('Using original URL as fallback:', secureUrl);
             }
             
             console.log('Final URL info:', {
