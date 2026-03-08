@@ -330,6 +330,29 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
                     candidates: urlCandidates,
                     selected: secureUrl
                 });
+                
+                // Test the selected URL to see if it's accessible
+                console.log('Testing URL accessibility...');
+                const https = require('https');
+                const testUrl = new URL(secureUrl);
+                
+                const req = https.request(testUrl, { method: 'HEAD', timeout: 5000 }, (res) => {
+                    console.log(`URL Test Result: ${res.statusCode} - ${res.statusMessage}`);
+                    console.log(`Content-Type: ${res.headers['content-type']}`);
+                    console.log(`Content-Length: ${res.headers['content-length']}`);
+                });
+                
+                req.on('error', (err) => {
+                    console.log(`URL Test Error: ${err.message}`);
+                });
+                
+                req.on('timeout', () => {
+                    console.log('URL Test Timeout');
+                    req.destroy();
+                });
+                
+                req.end();
+                
             } else if (!workingUrl || !workingUrl.startsWith('https://res.cloudinary.com')) {
                 // Generate proper Cloudinary URL as fallback
                 secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
