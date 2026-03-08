@@ -440,11 +440,16 @@ app.delete('/file/:roomId/:filename', (req, res) => {
 
         if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
             // Delete from Cloudinary
-            cloudinary.uploader.destroy(metadata.cloudinaryData.public_id, (error, result) => {
+            console.log(`Attempting to delete from Cloudinary: ${metadata.cloudinaryData.public_id}`);
+            
+            cloudinary.uploader.destroy(metadata.cloudinaryData.public_id, { invalidate: true }, (error, result) => {
                 if (error) {
                     console.error('Cloudinary delete error:', error);
-                    return res.status(500).json({ error: 'Failed to delete file' });
+                    console.error('Public ID:', metadata.cloudinaryData.public_id);
+                    return res.status(500).json({ error: 'Failed to delete file from cloud' });
                 }
+                
+                console.log('Cloudinary delete result:', result);
                 
                 // Remove from metadata
                 removeFileMetadata(roomId, filename);

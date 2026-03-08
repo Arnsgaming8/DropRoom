@@ -560,6 +560,11 @@ class DropRoom {
             // URL encode the filename to handle special characters
             const encodedFilename = encodeURIComponent(filename);
             
+            console.log(`Deleting file: ${filename}`);
+            console.log(`Room ID: ${this.roomId}`);
+            console.log(`Uploader ID: ${this.uploaderId}`);
+            console.log(`API URL: ${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`);
+            
             const response = await fetch(`${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`, {
                 method: 'DELETE',
                 headers: {
@@ -570,8 +575,12 @@ class DropRoom {
                 })
             });
 
+            console.log('Delete response status:', response.status);
+            console.log('Delete response ok:', response.ok);
+
             if (!response.ok) {
                 const error = await response.json();
+                console.error('Delete error response:', error);
                 throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
             }
 
