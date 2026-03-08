@@ -201,11 +201,11 @@ class DropRoom {
             clearInterval(this.refreshInterval);
         }
         
-        // Refresh saved rooms every 10 seconds
+        // Refresh saved rooms every 1 second
         this.refreshInterval = setInterval(() => {
             console.log('Auto-refreshing saved rooms...');
             this.displaySavedRooms();
-        }, 10000);
+        }, 1000);
     }
 
     displaySavedRooms() {
@@ -419,11 +419,11 @@ class DropRoom {
             clearInterval(this.refreshInterval);
         }
         
-        // Refresh files every 10 seconds
+        // Refresh files every 1 second
         this.refreshInterval = setInterval(() => {
             console.log('Auto-refreshing files...');
             this.loadFiles();
-        }, 10000);
+        }, 1000);
     }
 
     displayFiles(files) {
