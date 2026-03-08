@@ -276,29 +276,52 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
                 resourceType = 'raw'; // For documents and other files
             }
             
-            // Use the working URL from Cloudinary but fix resource type if needed
+            // Use working URL from Cloudinary but ensure correct format
             let secureUrl = workingUrl;
             
-            // Fix resource type in Cloudinary's working URL
+            // Comprehensive URL fixing for all resource types
             if (workingUrl && workingUrl.startsWith('https://res.cloudinary.com/')) {
-                // Replace wrong resource type with correct one
-                if (resourceType === 'raw' && workingUrl.includes('/image/upload/')) {
-                    secureUrl = workingUrl.replace('/image/upload/', '/raw/upload/');
-                    console.log('Fixed resource type from image to raw:', secureUrl);
-                } else if (resourceType === 'video' && workingUrl.includes('/image/upload/')) {
-                    secureUrl = workingUrl.replace('/image/upload/', '/video/upload/');
-                    console.log('Fixed resource type from image to video:', secureUrl);
+                // Determine what resource type should be based on format
+                let correctResourceType = 'image'; // default
+                if (videoFormats.includes(format.toLowerCase())) {
+                    correctResourceType = 'video';
+                } else if (audioFormats.includes(format.toLowerCase())) {
+                    correctResourceType = 'video'; // Cloudinary uses 'video' for audio
+                } else {
+                    correctResourceType = 'raw'; // For documents and other files
                 }
+                
+                // Extract base URL components
+                const urlParts = workingUrl.split('/');
+                const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+                
+                // Find the version number (starts with 'v' followed by digits)
+                let version = '';
+                let pathAfterVersion = '';
+                for (let i = 0; i < urlParts.length; i++) {
+                    if (urlParts[i].startsWith('v') && /^\d+$/.test(urlParts[i].substring(1))) {
+                        version = urlParts[i];
+                        pathAfterVersion = urlParts.slice(i + 1).join('/');
+                        break;
+                    }
+                }
+                
+                // Reconstruct URL with correct resource type
+                secureUrl = `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${version}/${pathAfterVersion}`;
+                
+                console.log('Comprehensive URL fix:', {
+                    original: workingUrl,
+                    format: format,
+                    correctResourceType: correctResourceType,
+                    version: version,
+                    pathAfterVersion: pathAfterVersion,
+                    final: secureUrl
+                });
+            } else if (!workingUrl || !workingUrl.startsWith('https://res.cloudinary.com')) {
+                // Generate proper Cloudinary URL as fallback
+                secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
+                console.log('Generated fallback URL:', secureUrl);
             }
-            
-            console.log('Using Cloudinary working URL with fixes:', secureUrl);
-            console.log('URL analysis:', {
-                original: workingUrl,
-                fixed: secureUrl,
-                resourceType: resourceType,
-                format: format,
-                hasCorrectResourceType: secureUrl.includes(`/${resourceType}/upload/`)
-            });
             
             console.log(`Final secure_url: ${secureUrl}`);
             console.log(`Using resource type: ${resourceType} for format: ${format}`);
