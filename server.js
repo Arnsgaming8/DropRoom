@@ -21,13 +21,18 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Storage directory
-const STORAGE_DIR = path.join(__dirname, 'storage');
+// Storage directory with persistent storage
+// Use /app/storage for Render's persistent disk, fallback to local storage
+const STORAGE_DIR = process.env.RENDER ? '/app/storage' : path.join(__dirname, 'storage');
 
 // Ensure storage directory exists
 if (!fs.existsSync(STORAGE_DIR)) {
     fs.mkdirSync(STORAGE_DIR, { recursive: true });
 }
+
+console.log('Storage directory initialized:', STORAGE_DIR);
+console.log('Files will be stored permanently (no expiration)');
+console.log('Using persistent storage for Render deployment');
 
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
@@ -75,7 +80,8 @@ function saveFileMetadata(roomId, filename, uploaderId) {
     
     metadata[filename] = {
         uploaderId: uploaderId,
-        uploadedAt: new Date().toISOString()
+        uploadedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
     };
     
     fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
