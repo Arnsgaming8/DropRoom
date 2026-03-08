@@ -284,14 +284,14 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
                 ((resourceType === 'raw' && workingUrl.includes('/image/upload/')) ||
                  (resourceType === 'video' && workingUrl.includes('/image/upload/')))) {
                 
-                // Extract the version and file path from working URL
+                // Extract parts from working URL
                 const urlParts = workingUrl.split('/');
-                const versionIndex = urlParts.indexOf('upload') - 1;
-                const version = urlParts[versionIndex];
-                const filePath = urlParts.slice(versionIndex + 2).join('/'); // Skip 'upload' and folder
+                const domain = urlParts.slice(0, 3).join('/'); // https://res.cloudinary.com/dxtujnsmb
+                const uploadIndex = urlParts.indexOf('upload');
+                const afterUpload = urlParts.slice(uploadIndex + 1); // Everything after 'upload'
                 
                 // Reconstruct URL with correct resource type
-                secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${version}/${filePath}`;
+                secureUrl = `${domain}/${resourceType}/upload/${afterUpload.join('/')}`;
                 console.log('Fixed resource type URL:', secureUrl);
             } else if (!workingUrl || !workingUrl.startsWith('https://res.cloudinary.com')) {
                 // Generate proper Cloudinary URL with correct resource type
