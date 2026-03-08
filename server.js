@@ -256,6 +256,11 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
             
             console.log('Extracted data:', { publicId, format, bytes });
             console.log('Working URL from Cloudinary:', workingUrl);
+            console.log('Cloudinary environment:', {
+                cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+                api_key: process.env.CLOUDINARY_API_KEY ? 'SET' : 'NOT_SET',
+                api_secret: process.env.CLOUDINARY_API_SECRET ? 'SET' : 'NOT_SET'
+            });
             
             // Determine Cloudinary resource type based on file format
             const imageFormats = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'svg', 'ico'];
@@ -272,7 +277,16 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
             }
             
             // Use the working URL from Cloudinary response
-            const secureUrl = workingUrl || `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
+            let secureUrl = workingUrl;
+            
+            // If the working URL doesn't exist or is malformed, generate a proper one
+            if (!secureUrl || !secureUrl.startsWith('https://res.cloudinary.com')) {
+                // Generate proper Cloudinary URL
+                secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
+                console.log('Generated fallback URL:', secureUrl);
+            } else {
+                console.log('Using Cloudinary working URL:', secureUrl);
+            }
             
             console.log(`Final secure_url: ${secureUrl}`);
             console.log(`Using resource type: ${resourceType} for format: ${format}`);
