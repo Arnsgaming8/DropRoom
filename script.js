@@ -393,14 +393,17 @@ class DropRoom {
             const response = await fetch(`${this.apiBaseUrl}/list/${this.roomId}`);
             
             console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
             
             if (!response.ok) {
+                console.error('Response not OK:', response.status, response.statusText);
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const files = await response.json();
             console.log('Files loaded:', files);
             console.log('Number of files:', files.length);
+            console.log('Files array type:', Array.isArray(files));
             
             this.displayFiles(files);
             
@@ -409,6 +412,7 @@ class DropRoom {
             
         } catch (error) {
             console.error('Load files error:', error);
+            console.error('Error details:', error.message, error.stack);
             this.showToast(`Failed to load files: ${error.message}`, 'error');
         }
     }
