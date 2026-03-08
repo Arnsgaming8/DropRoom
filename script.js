@@ -352,9 +352,14 @@ class DropRoom {
 
     async loadFiles() {
         try {
-            console.log(`Loading files from: ${this.apiBaseUrl}/list/${this.roomId}`);
+            console.log('Loading files...');
+            console.log(`Room ID: ${this.roomId}`);
+            console.log(`API URL: ${this.apiBaseUrl}`);
+            console.log(`Full URL: ${this.apiBaseUrl}/list/${this.roomId}`);
             
             const response = await fetch(`${this.apiBaseUrl}/list/${this.roomId}`);
+            
+            console.log('Response status:', response.status);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -362,6 +367,8 @@ class DropRoom {
 
             const files = await response.json();
             console.log('Files loaded:', files);
+            console.log('Number of files:', files.length);
+            
             this.displayFiles(files);
             
         } catch (error) {
