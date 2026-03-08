@@ -276,73 +276,16 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
                 resourceType = 'raw'; // For documents and other files
             }
             
-            // Use working URL from Cloudinary but ensure correct format
-            let secureUrl = workingUrl;
+            // Use the working URL from Cloudinary directly - Cloudinary knows best
+            const secureUrl = workingUrl;
             
-            // Comprehensive URL fixing for all resource types
-            if (workingUrl && workingUrl.startsWith('https://res.cloudinary.com/')) {
-                // Determine what resource type should be based on format
-                let correctResourceType = 'image'; // default
-                if (videoFormats.includes(format.toLowerCase())) {
-                    correctResourceType = 'video';
-                } else if (audioFormats.includes(format.toLowerCase())) {
-                    correctResourceType = 'video'; // Cloudinary uses 'video' for audio
-                } else {
-                    correctResourceType = 'raw'; // For documents and other files
-                }
-                
-                // Extract base URL components
-                const urlParts = workingUrl.split('/');
-                const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-                
-                // Find the version number (starts with 'v' followed by digits)
-                let version = '';
-                let pathAfterVersion = '';
-                for (let i = 0; i < urlParts.length; i++) {
-                    if (urlParts[i].startsWith('v') && /^\d+$/.test(urlParts[i].substring(1))) {
-                        version = urlParts[i];
-                        pathAfterVersion = urlParts.slice(i + 1).join('/');
-                        break;
-                    }
-                }
-                
-                // Try multiple URL formats to find one that works
-                const urlCandidates = [
-                    // Format 1: Original working URL (most likely to work)
-                    workingUrl,
-                    // Format 2: Correct resource type with version
-                    `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${version}/${pathAfterVersion}`,
-                    // Format 3: Use image/upload as fallback
-                    `https://res.cloudinary.com/${cloudName}/image/upload/${version}/${pathAfterVersion}`,
-                    // Format 4: Try without version in path
-                    `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${pathAfterVersion}`,
-                    // Format 5: Simple format without version
-                    `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${publicId}.${format}`,
-                    // Format 6: Try with just filename
-                    `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${publicId.split('/').pop()}.${format}`
-                ];
-                
-                console.log('Comprehensive URL fix with candidates:', {
-                    original: workingUrl,
-                    format: format,
-                    correctResourceType: correctResourceType,
-                    version: version,
-                    pathAfterVersion: pathAfterVersion,
-                    candidates: urlCandidates
-                });
-                
-                // Start with the original working URL (most reliable)
-                secureUrl = urlCandidates[0];
-                
-                console.log(`Selected candidate: ${secureUrl}`);
-                
-            } else if (!workingUrl || !workingUrl.startsWith('https://res.cloudinary.com')) {
-                // Generate proper Cloudinary URL as fallback
-                secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
-                console.log('Generated fallback URL:', secureUrl);
-            }
-            
-            console.log(`Final secure_url: ${secureUrl}`);
+            console.log('Using Cloudinary working URL:', secureUrl);
+            console.log('URL info:', {
+                format: format,
+                resourceType: resourceType,
+                workingUrl: workingUrl,
+                publicId: publicId
+            });
             console.log(`Using resource type: ${resourceType} for format: ${format}`);
             
             cloudinaryData = {
