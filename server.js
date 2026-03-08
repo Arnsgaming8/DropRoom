@@ -241,7 +241,7 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
         
         let cloudinaryData = null;
         if (STORAGE_TYPE === 'cloudinary') {
-            console.log('Cloudinary upload response:', req.file);
+            console.log('Cloudinary upload response:', JSON.stringify(req.file, null, 2));
             
             // Handle different Cloudinary response structures
             const publicId = req.file.public_id || req.file.filename || req.file.path;
@@ -249,6 +249,7 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
             const bytes = req.file.size || req.file.bytes || 0;
             
             console.log('Extracted data:', { publicId, format, bytes });
+            console.log('Public ID details:', typeof publicId, publicId);
             
             // Determine Cloudinary resource type based on file format
             const imageFormats = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'svg', 'ico'];
@@ -265,8 +266,12 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
             }
             
             // Generate the secure_url with correct resource type
-            const secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
+            // If public_id already includes the folder path, use it directly
+            const secureUrl = publicId.includes('/') 
+                ? `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`
+                : `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
             
+            console.log(`Generated URL: ${secureUrl}`);
             console.log(`Using resource type: ${resourceType} for format: ${format}`);
             
             cloudinaryData = {
