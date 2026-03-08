@@ -286,13 +286,15 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
                 
                 // Extract parts from working URL
                 const urlParts = workingUrl.split('/');
-                const domain = urlParts.slice(0, 3).join('/'); // https://res.cloudinary.com/dxtujnsmb
+                const cloudIndex = urlParts.indexOf('res.cloudinary.com');
+                const cloudName = urlParts[cloudIndex + 1]; // dxtujnsmb
                 const uploadIndex = urlParts.indexOf('upload');
                 const afterUpload = urlParts.slice(uploadIndex + 1); // Everything after 'upload'
                 
                 // Reconstruct URL with correct resource type
-                secureUrl = `${domain}/${resourceType}/upload/${afterUpload.join('/')}`;
+                secureUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${afterUpload.join('/')}`;
                 console.log('Fixed resource type URL:', secureUrl);
+                console.log('URL components:', { cloudName, resourceType, afterUpload: afterUpload.join('/') });
             } else if (!workingUrl || !workingUrl.startsWith('https://res.cloudinary.com')) {
                 // Generate proper Cloudinary URL with correct resource type
                 secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
