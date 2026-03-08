@@ -190,6 +190,22 @@ class DropRoom {
 
     initSavedRoomsPage() {
         this.displaySavedRooms();
+        
+        // Start auto-refresh for saved rooms page
+        this.startSavedRoomsRefresh();
+    }
+
+    startSavedRoomsRefresh() {
+        // Clear existing refresh interval
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+        }
+        
+        // Refresh saved rooms every 10 seconds
+        this.refreshInterval = setInterval(() => {
+            console.log('Auto-refreshing saved rooms...');
+            this.displaySavedRooms();
+        }, 10000);
     }
 
     displaySavedRooms() {
@@ -324,25 +340,42 @@ class DropRoom {
             // Create progress toast
             const progressToast = this.showToast(`Uploading ${file.name}... 0%`, 'info');
             
-            const response = await fetch(`${this.apiBaseUrl}/upload/${this.roomId}`, {
-                method: 'POST',
-                body: formData
+            // Create upload with progress tracking
+            const xhr = new XMLHttpRequest();
+            
+            // Update progress
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    progressToast.textContent = `Uploading ${file.name}... ${percentComplete}%`;
+                    progressToast.className = `toast show info`;
+                }
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const result = await response.json();
-            console.log('Upload result:', result);
             
-            // Update progress toast to success
-            if (progressToast) {
-                progressToast.textContent = `${file.name} uploaded successfully!`;
-                progressToast.className = 'toast show success';
-            }
+            // Handle completion
+            xhr.addEventListener('load', () => {
+                if (xhr.status === 200) {
+                    const result = JSON.parse(xhr.responseText);
+                    console.log('Upload result:', result);
+                    
+                    // Update progress toast to success
+                    progressToast.textContent = `${file.name} uploaded successfully!`;
+                    progressToast.className = 'toast show success';
+                    
+                    this.loadFiles(); // Refresh file list
+                } else {
+                    throw new Error(`HTTP ${xhr.status}: ${xhr.statusText}`);
+                }
+            });
             
-            this.loadFiles(); // Refresh file list
+            // Handle errors
+            xhr.addEventListener('error', () => {
+                throw new Error('Upload failed');
+            });
+            
+            // Send request
+            xhr.open('POST', `${this.apiBaseUrl}/upload/${this.roomId}`);
+            xhr.send(formData);
             
         } catch (error) {
             console.error('Upload error:', error);
@@ -371,10 +404,26 @@ class DropRoom {
             
             this.displayFiles(files);
             
+            // Start auto-refresh for room pages
+            this.startAutoRefresh();
+            
         } catch (error) {
             console.error('Load files error:', error);
             this.showToast(`Failed to load files: ${error.message}`, 'error');
         }
+    }
+
+    startAutoRefresh() {
+        // Clear existing refresh interval
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+        }
+        
+        // Refresh files every 10 seconds
+        this.refreshInterval = setInterval(() => {
+            console.log('Auto-refreshing files...');
+            this.loadFiles();
+        }, 10000);
     }
 
     displayFiles(files) {
