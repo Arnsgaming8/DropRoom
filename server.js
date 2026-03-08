@@ -285,10 +285,24 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
                 (resourceType === 'video' && secureUrl.includes('/image/upload/'))) {
                 
                 // Generate proper Cloudinary URL with correct resource type
+                // Use the exact format Cloudinary expects
                 secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
                 console.log('Generated corrected URL:', secureUrl);
+                console.log('URL structure check:', {
+                    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+                    resource_type: resourceType,
+                    public_id: publicId,
+                    format: format
+                });
             } else {
                 console.log('Using Cloudinary working URL:', secureUrl);
+            }
+            
+            // Final validation - ensure URL is properly formatted
+            if (!secureUrl.includes(`${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/`)) {
+                console.warn('URL format may be incorrect, forcing proper format');
+                secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
+                console.log('Forced corrected URL:', secureUrl);
             }
             
             console.log(`Final secure_url: ${secureUrl}`);
