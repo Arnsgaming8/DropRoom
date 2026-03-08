@@ -237,15 +237,21 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
         if (STORAGE_TYPE === 'cloudinary') {
             console.log('Cloudinary upload response:', req.file);
             
-            // Generate the secure_url from public_id if not provided
-            const secureUrl = req.file.secure_url || 
-                `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${req.file.public_id}.${req.file.format || 'jpg'}`;
+            // Handle different Cloudinary response structures
+            const publicId = req.file.public_id || req.file.filename || req.file.path;
+            const format = req.file.format || req.file.originalname.split('.').pop() || 'jpg';
+            const bytes = req.file.size || req.file.bytes || 0;
+            
+            console.log('Extracted data:', { publicId, format, bytes });
+            
+            // Generate the secure_url from public_id
+            const secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${publicId}.${format}`;
             
             cloudinaryData = {
-                public_id: req.file.public_id || req.file.filename,
+                public_id: publicId,
                 secure_url: secureUrl,
-                format: req.file.format || req.file.originalname.split('.').pop(),
-                bytes: req.file.size || req.file.bytes,
+                format: format,
+                bytes: bytes,
                 created_at: new Date().toISOString()
             };
             console.log('Processed cloudinary data:', cloudinaryData);
