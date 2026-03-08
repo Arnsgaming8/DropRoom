@@ -279,11 +279,14 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
             // Use the working URL from Cloudinary response
             let secureUrl = workingUrl;
             
-            // If the working URL doesn't exist or is malformed, generate a proper one
-            if (!secureUrl || !secureUrl.startsWith('https://res.cloudinary.com')) {
-                // Generate proper Cloudinary URL
+            // If the working URL doesn't exist or has wrong resource type, generate a proper one
+            if (!secureUrl || !secureUrl.startsWith('https://res.cloudinary.com') || 
+                (resourceType === 'raw' && secureUrl.includes('/image/upload/')) ||
+                (resourceType === 'video' && secureUrl.includes('/image/upload/'))) {
+                
+                // Generate proper Cloudinary URL with correct resource type
                 secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
-                console.log('Generated fallback URL:', secureUrl);
+                console.log('Generated corrected URL:', secureUrl);
             } else {
                 console.log('Using Cloudinary working URL:', secureUrl);
             }
