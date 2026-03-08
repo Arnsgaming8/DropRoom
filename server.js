@@ -349,8 +349,37 @@ app.get('/file/:roomId/:filename', (req, res) => {
         if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
             // Check if we have a Cloudinary URL
             if (metadata.cloudinaryData.secure_url) {
-                console.log(`Redirecting to Cloudinary URL: ${metadata.cloudinaryData.secure_url}`);
-                res.redirect(metadata.cloudinaryData.secure_url);
+                console.log(`Fetching file from Cloudinary URL: ${metadata.cloudinaryData.secure_url}`);
+                
+                // Fetch the file from Cloudinary and serve it
+                const https = require('https');
+                const url = require('url');
+                const cloudinaryUrl = metadata.cloudinaryData.secure_url;
+                
+                const parsedUrl = url.parse(cloudinaryUrl);
+                const options = {
+                    hostname: parsedUrl.hostname,
+                    path: parsedUrl.path,
+                    method: 'GET'
+                };
+                
+                const cloudinaryReq = https.request(options, (cloudinaryRes) => {
+                    // Set headers for the response
+                    res.setHeader('Content-Type', cloudinaryRes.headers['content-type'] || 'application/octet-stream');
+                    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+                    res.setHeader('Cache-Control', 'public, max-age=3600');
+                    
+                    // Pipe the Cloudinary response to our response
+                    cloudinaryRes.pipe(res);
+                });
+                
+                cloudinaryReq.on('error', (error) => {
+                    console.error('Error fetching from Cloudinary:', error);
+                    res.status(500).json({ error: 'Failed to fetch file from Cloudinary' });
+                });
+                
+                cloudinaryReq.end();
+                return; // Important: return to avoid further execution
             } else {
                 console.error('Missing Cloudinary URL for file:', filename);
                 console.error('Cloudinary data:', JSON.stringify(metadata.cloudinaryData, null, 2));
@@ -404,13 +433,41 @@ app.get('/download/:roomId/:filename', (req, res) => {
         if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
             // Check if we have a Cloudinary URL
             if (metadata.cloudinaryData.secure_url) {
-                // Redirect to Cloudinary download URL
+                // Create download URL with attachment parameter
                 const downloadUrl = metadata.cloudinaryData.secure_url.replace('/upload/', '/upload/fl_attachment/');
-                console.log(`Redirecting to Cloudinary download URL: ${downloadUrl}`);
-                res.redirect(downloadUrl);
+                console.log(`Fetching file from Cloudinary download URL: ${downloadUrl}`);
+                
+                // Fetch the file from Cloudinary and serve it as download
+                const https = require('https');
+                const url = require('url');
+                
+                const parsedUrl = url.parse(downloadUrl);
+                const options = {
+                    hostname: parsedUrl.hostname,
+                    path: parsedUrl.path,
+                    method: 'GET'
+                };
+                
+                const cloudinaryReq = https.request(options, (cloudinaryRes) => {
+                    // Set headers for download
+                    res.setHeader('Content-Type', cloudinaryRes.headers['content-type'] || 'application/octet-stream');
+                    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+                    res.setHeader('Cache-Control', 'public, max-age=3600');
+                    
+                    // Pipe the Cloudinary response to our response
+                    cloudinaryRes.pipe(res);
+                });
+                
+                cloudinaryReq.on('error', (error) => {
+                    console.error('Error fetching from Cloudinary:', error);
+                    res.status(500).json({ error: 'Failed to fetch file from Cloudinary' });
+                });
+                
+                cloudinaryReq.end();
+                return; // Important: return to avoid further execution
             } else {
                 console.error('Missing Cloudinary URL for file download:', filename);
-                console.error('Cloudinary data:', metadata.cloudinaryData);
+                console.error('Cloudinary data:', JSON.stringify(metadata.cloudinaryData, null, 2));
                 return res.status(404).json({ error: 'File URL not found - please re-upload the file' });
             }
         } else {
