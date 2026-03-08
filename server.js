@@ -308,18 +308,19 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
                 
                 // Try multiple URL formats to find one that works
                 const urlCandidates = [
-                    // Format 1: Correct resource type with version
-                    `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${version}/${pathAfterVersion}`,
-                    // Format 2: Original working URL (in case it actually works)
+                    // Format 1: Original working URL (most likely to work)
                     workingUrl,
-                    // Format 3: Simple format without version
+                    // Format 2: Correct resource type with version
+                    `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${version}/${pathAfterVersion}`,
+                    // Format 3: Use image/upload as fallback
+                    `https://res.cloudinary.com/${cloudName}/image/upload/${version}/${pathAfterVersion}`,
+                    // Format 4: Try without version in path
+                    `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${pathAfterVersion}`,
+                    // Format 5: Simple format without version
                     `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${publicId}.${format}`,
-                    // Format 4: Use image/upload as fallback
-                    `https://res.cloudinary.com/${cloudName}/image/upload/${version}/${pathAfterVersion}`
+                    // Format 6: Try with just filename
+                    `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${publicId.split('/').pop()}.${format}`
                 ];
-                
-                // Use the first candidate that has the correct structure
-                secureUrl = urlCandidates[0];
                 
                 console.log('Comprehensive URL fix with candidates:', {
                     original: workingUrl,
@@ -327,31 +328,13 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
                     correctResourceType: correctResourceType,
                     version: version,
                     pathAfterVersion: pathAfterVersion,
-                    candidates: urlCandidates,
-                    selected: secureUrl
+                    candidates: urlCandidates
                 });
                 
-                // Test the selected URL to see if it's accessible
-                console.log('Testing URL accessibility...');
-                const https = require('https');
-                const testUrl = new URL(secureUrl);
+                // Start with the original working URL (most reliable)
+                secureUrl = urlCandidates[0];
                 
-                const req = https.request(testUrl, { method: 'HEAD', timeout: 5000 }, (res) => {
-                    console.log(`URL Test Result: ${res.statusCode} - ${res.statusMessage}`);
-                    console.log(`Content-Type: ${res.headers['content-type']}`);
-                    console.log(`Content-Length: ${res.headers['content-length']}`);
-                });
-                
-                req.on('error', (err) => {
-                    console.log(`URL Test Error: ${err.message}`);
-                });
-                
-                req.on('timeout', () => {
-                    console.log('URL Test Timeout');
-                    req.destroy();
-                });
-                
-                req.end();
+                console.log(`Selected candidate: ${secureUrl}`);
                 
             } else if (!workingUrl || !workingUrl.startsWith('https://res.cloudinary.com')) {
                 // Generate proper Cloudinary URL as fallback
