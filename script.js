@@ -201,11 +201,11 @@ class DropRoom {
             clearInterval(this.refreshInterval);
         }
         
-        // Refresh saved rooms every 1 second
+        // Refresh saved rooms every 5 seconds (reduced from 1 second to avoid spam)
         this.refreshInterval = setInterval(() => {
             console.log('Auto-refreshing saved rooms...');
             this.displaySavedRooms();
-        }, 1000);
+        }, 5000);
     }
 
     displaySavedRooms() {
@@ -345,7 +345,7 @@ class DropRoom {
             
             // Update progress
             xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
+                if (e.lengthComputable && progressToast) {
                     const percentComplete = Math.round((e.loaded / e.total) * 100);
                     progressToast.textContent = `Uploading ${file.name}... ${percentComplete}%`;
                     progressToast.className = `toast show info`;
@@ -363,26 +363,38 @@ class DropRoom {
                         console.log('Upload result:', result);
                         
                         // Update progress toast to success
-                        progressToast.textContent = `${file.name} uploaded successfully!`;
-                        progressToast.className = 'toast show success';
+                        if (progressToast) {
+                            progressToast.textContent = `${file.name} uploaded successfully!`;
+                            progressToast.className = 'toast show success';
+                        }
                         
                         console.log('About to call loadFiles after upload...');
                         this.loadFiles(); // Refresh file list
                     } catch (parseError) {
                         console.error('Failed to parse upload response:', parseError);
                         console.error('Raw response:', xhr.responseText);
-                        throw new Error('Invalid upload response');
+                        if (progressToast) {
+                            progressToast.textContent = `Upload failed: Invalid response`;
+                            progressToast.className = 'toast show error';
+                        }
                     }
                 } else {
                     console.error('Upload failed with status:', xhr.status);
                     console.error('Response:', xhr.responseText);
-                    throw new Error(`HTTP ${xhr.status}: ${xhr.statusText}`);
+                    if (progressToast) {
+                        progressToast.textContent = `Upload failed: ${xhr.statusText}`;
+                        progressToast.className = 'toast show error';
+                    }
                 }
             });
             
             // Handle errors
             xhr.addEventListener('error', () => {
-                throw new Error('Upload failed');
+                console.error('Upload network error');
+                if (progressToast) {
+                    progressToast.textContent = `Upload failed: Network error`;
+                    progressToast.className = 'toast show error';
+                }
             });
             
             // Send request
@@ -435,11 +447,11 @@ class DropRoom {
             clearInterval(this.refreshInterval);
         }
         
-        // Refresh files every 1 second
+        // Refresh files every 5 seconds (reduced from 1 second to avoid spam)
         this.refreshInterval = setInterval(() => {
             console.log('Auto-refreshing files...');
             this.loadFiles();
-        }, 1000);
+        }, 5000);
     }
 
     displayFiles(files) {
