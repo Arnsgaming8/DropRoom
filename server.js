@@ -5,8 +5,8 @@ const path = require('path');
 const fs = require('fs');
 const mime = require('mime-types');
 const { v4: uuidv4 } = require('uuid');
-const AWS = require('aws-sdk');
-const multerS3 = require('multer-s3');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,41 +26,44 @@ app.use(express.urlencoded({ extended: true }));
 // Storage Configuration
 const STORAGE_TYPE = process.env.STORAGE_TYPE || 'local';
 
-// AWS S3 Configuration
-let s3;
+// Cloudinary Configuration
 let upload;
 
-if (STORAGE_TYPE === 's3') {
-    // Configure AWS S3
-    s3 = new AWS.S3({
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        region: process.env.AWS_REGION || 'us-east-1'
+if (STORAGE_TYPE === 'cloudinary') {
+    // Configure Cloudinary
+    cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET
     });
 
-    // Configure multer for S3 uploads
-    upload = multer({
-        storage: multerS3({
-            s3: s3,
-            bucket: process.env.AWS_S3_BUCKET,
-            metadata: function (req, file, cb) {
-                cb(null, { fieldName: file.fieldname });
+    // Configure multer for Cloudinary uploads
+    const storage = new CloudinaryStorage({
+        cloudinary: cloudinary,
+        params: {
+            folder: (req, file) => `droproom/${req.params.roomId || 'default'}`,
+            format: async (req, file) => {
+                // Keep original format or default to jpg
+                return file.originalname.split('.').pop() || 'jpg';
             },
-            key: function (req, file, cb) {
-                const roomId = req.params.roomId || 'unknown';
-                const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-                const uniqueKey = `${roomId}/${Date.now()}-${safeName}`;
-                cb(null, uniqueKey);
+            public_id: (req, file) => {
+                // Create unique ID with timestamp
+                const timestamp = Date.now();
+                const originalName = file.originalname.split('.')[0];
+                return `${timestamp}-${originalName}`;
             }
-        }),
+        },
+    });
+
+    upload = multer({ 
+        storage: storage,
         limits: {
             fileSize: parseInt(process.env.MAX_FILE_SIZE) || 500 * 1024 * 1024 // Default 500MB
         }
     });
 
-    console.log('AWS S3 storage initialized');
-    console.log('Bucket:', process.env.AWS_S3_BUCKET);
-    console.log('Region:', process.env.AWS_REGION || 'us-east-1');
+    console.log('Cloudinary storage initialized');
+    console.log('Cloud name:', process.env.CLOUDINARY_CLOUD_NAME);
 } else {
     // Local storage fallback
     const STORAGE_DIR = path.join(__dirname, 'storage');
@@ -109,7 +112,7 @@ function getMetadataPath(roomId) {
     return path.join(METADATA_DIR, `${roomId}.json`);
 }
 
-function saveFileMetadata(roomId, filename, uploaderId, s3Key = null) {
+function saveFileMetadata(roomId, filename, uploaderId, cloudinaryData = null) {
     const metadataPath = getMetadataPath(roomId);
     let metadata = {};
     
@@ -125,10 +128,26 @@ function saveFileMetadata(roomId, filename, uploaderId, s3Key = null) {
         uploaderId: uploaderId,
         uploadedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
-        s3Key: s3Key // Store S3 key if using S3
+        cloudinaryData: cloudinaryData // Store Cloudinary data if using Cloudinary
     };
     
     fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+}
+
+function getFileMetadata(roomId, filename) {
+    const metadataPath = getMetadataPath(roomId);
+    
+    if (!fs.existsSync(metadataPath)) {
+        return null;
+    }
+    
+    try {
+        const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+        return metadata[filename] || null;
+    } catch (error) {
+        console.error('Error reading metadata:', error);
+        return null;
+    }
 }
 
 function removeFileMetadata(roomId, filename) {
@@ -151,29 +170,16 @@ function removeFileMetadata(roomId, filename) {
     }
 }
 
-function getFileMetadata(roomId, filename) {
-    const metadataPath = getMetadataPath(roomId);
-    
-    if (!fs.existsSync(metadataPath)) {
-        return null;
-    }
-    
-    try {
-        const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
-        return metadata[filename] || null;
-    } catch (error) {
-        console.error('Error reading metadata:', error);
-        return null;
-    }
-}
-
-function getFileWithUploaderInfo(roomId, filename, filePath, s3Key = null) {
+function getFileWithUploaderInfo(roomId, filename, filePath, cloudinaryData = null) {
     try {
         let stats;
         
-        if (STORAGE_TYPE === 's3') {
-            // For S3, we'll use metadata for file info
-            stats = { size: 0, mtime: new Date() }; // Placeholder
+        if (STORAGE_TYPE === 'cloudinary') {
+            // For Cloudinary, use Cloudinary data for file info
+            stats = { 
+                size: cloudinaryData?.bytes || 0, 
+                mtime: new Date(cloudinaryData?.created_at || Date.now()) 
+            };
         } else {
             stats = fs.statSync(filePath);
         }
@@ -188,8 +194,8 @@ function getFileWithUploaderInfo(roomId, filename, filePath, s3Key = null) {
             lastModified: stats.mtime,
             uploadedAt: metadata?.uploadedAt || stats.mtime,
             uploaderId: metadata?.uploaderId || null,
-            s3Key: metadata?.s3Key || s3Key,
-            previewUrl: s3Key ? `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${s3Key}` : null
+            cloudinaryData: metadata?.cloudinaryData || cloudinaryData,
+            previewUrl: cloudinaryData?.secure_url || null
         };
     } catch (error) {
         console.error('Error getting file info:', error);
@@ -224,13 +230,19 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
         const uploaderId = req.body.uploaderId;
         const filename = req.file.originalname;
         
-        let s3Key = null;
-        if (STORAGE_TYPE === 's3') {
-            s3Key = req.file.key; // S3 key from multer-s3
+        let cloudinaryData = null;
+        if (STORAGE_TYPE === 'cloudinary') {
+            cloudinaryData = {
+                public_id: req.file.public_id,
+                secure_url: req.file.secure_url,
+                format: req.file.format,
+                bytes: req.file.bytes,
+                created_at: req.file.created_at
+            };
         }
         
         // Save metadata
-        saveFileMetadata(roomId, filename, uploaderId, s3Key);
+        saveFileMetadata(roomId, filename, uploaderId, cloudinaryData);
         
         console.log(`File uploaded: ${filename} to room ${roomId} by ${uploaderId}`);
         
@@ -238,10 +250,10 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
             success: true,
             file: {
                 name: filename,
-                size: req.file.size,
+                size: req.file.size || cloudinaryData?.bytes || 0,
                 uploadedAt: new Date().toISOString(),
                 uploaderId: uploaderId,
-                s3Key: s3Key
+                cloudinaryData: cloudinaryData
             },
             message: 'File uploaded successfully'
         });
@@ -272,31 +284,13 @@ app.get('/list/:roomId', (req, res) => {
 
         const fileList = [];
         
-        if (STORAGE_TYPE === 's3') {
-            // List files from S3
-            const s3Params = {
-                Bucket: process.env.AWS_S3_BUCKET,
-                Prefix: `${roomId}/`
-            };
-            
-            s3.listObjectsV2(s3Params, (err, data) => {
-                if (err) {
-                    console.error('S3 list error:', err);
-                    return res.status(500).json({ error: 'Failed to list files' });
+        if (STORAGE_TYPE === 'cloudinary') {
+            // List files from Cloudinary metadata
+            Object.keys(metadata).forEach(filename => {
+                const fileData = getFileWithUploaderInfo(roomId, filename, null, metadata[filename].cloudinaryData);
+                if (fileData) {
+                    fileList.push(fileData);
                 }
-                
-                if (data.Contents) {
-                    data.Contents.forEach(obj => {
-                        const filename = obj.Key.replace(`${roomId}/`, '').replace(/^\d+-/, '');
-                        const fileData = getFileWithUploaderInfo(roomId, filename, null, obj.Key);
-                        if (fileData) {
-                            fileList.push(fileData);
-                        }
-                    });
-                }
-                
-                fileList.sort((a, b) => new Date(b.uploadedAt || b.lastModified) - new Date(a.uploadedAt || a.lastModified));
-                res.json(fileList);
             });
         } else {
             // List files from local storage
@@ -317,10 +311,10 @@ app.get('/list/:roomId', (req, res) => {
                     }
                 }
             });
-            
-            fileList.sort((a, b) => new Date(b.uploadedAt || b.lastModified) - new Date(a.uploadedAt || a.lastModified));
-            res.json(fileList);
         }
+        
+        fileList.sort((a, b) => new Date(b.uploadedAt || b.lastModified) - new Date(a.uploadedAt || a.lastModified));
+        res.json(fileList);
 
     } catch (error) {
         console.error('List files error:', error);
@@ -339,24 +333,9 @@ app.get('/file/:roomId/:filename', (req, res) => {
             return res.status(404).json({ error: 'File not found' });
         }
         
-        if (STORAGE_TYPE === 's3' && metadata.s3Key) {
-            // Serve file from S3
-            const s3Params = {
-                Bucket: process.env.AWS_S3_BUCKET,
-                Key: metadata.s3Key
-            };
-            
-            s3.getObject(s3Params, (err, data) => {
-                if (err) {
-                    console.error('S3 get error:', err);
-                    return res.status(404).json({ error: 'File not found' });
-                }
-                
-                res.setHeader('Content-Type', data.ContentType);
-                res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-                res.setHeader('Cache-Control', 'public, max-age=3600');
-                res.send(data.Body);
-            });
+        if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
+            // Redirect to Cloudinary URL
+            res.redirect(metadata.cloudinaryData.secure_url);
         } else {
             // Serve file from local storage
             const filePath = path.join(__dirname, 'storage', roomId, filename);
@@ -402,24 +381,10 @@ app.get('/download/:roomId/:filename', (req, res) => {
             return res.status(404).json({ error: 'File not found' });
         }
         
-        if (STORAGE_TYPE === 's3' && metadata.s3Key) {
-            // Download from S3
-            const s3Params = {
-                Bucket: process.env.AWS_S3_BUCKET,
-                Key: metadata.s3Key
-            };
-            
-            s3.getObject(s3Params, (err, data) => {
-                if (err) {
-                    console.error('S3 download error:', err);
-                    return res.status(404).json({ error: 'File not found' });
-                }
-                
-                res.setHeader('Content-Type', data.ContentType);
-                res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-                res.setHeader('Cache-Control', 'public, max-age=3600');
-                res.send(data.Body);
-            });
+        if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
+            // Redirect to Cloudinary download URL
+            const downloadUrl = metadata.cloudinaryData.secure_url.replace('/upload/', '/upload/fl_attachment/');
+            res.redirect(downloadUrl);
         } else {
             // Download from local storage
             const filePath = path.join(__dirname, 'storage', roomId, filename);
@@ -473,16 +438,11 @@ app.delete('/file/:roomId/:filename', (req, res) => {
             return res.status(403).json({ error: 'You can only delete your own files' });
         }
 
-        if (STORAGE_TYPE === 's3' && metadata.s3Key) {
-            // Delete from S3
-            const s3Params = {
-                Bucket: process.env.AWS_S3_BUCKET,
-                Key: metadata.s3Key
-            };
-            
-            s3.deleteObject(s3Params, (err, data) => {
-                if (err) {
-                    console.error('S3 delete error:', err);
+        if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
+            // Delete from Cloudinary
+            cloudinary.uploader.destroy(metadata.cloudinaryData.public_id, (error, result) => {
+                if (error) {
+                    console.error('Cloudinary delete error:', error);
                     return res.status(500).json({ error: 'Failed to delete file' });
                 }
                 
