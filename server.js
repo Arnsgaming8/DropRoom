@@ -37,13 +37,13 @@ if (STORAGE_TYPE === 'cloudinary') {
         api_secret: process.env.CLOUDINARY_API_SECRET
     });
 
-    // Configure multer for Cloudinary uploads
+    // Configure multer for Cloudinary uploads with AI-powered format handling
     const storage = new CloudinaryStorage({
         cloudinary: cloudinary,
         params: {
             folder: (req, file) => `droproom/${req.params.roomId || 'default'}`,
             format: async (req, file) => {
-                // Keep original format
+                // Keep original format - AI will handle optimization later
                 return file.originalname.split('.').pop() || 'jpg';
             },
             public_id: (req, file) => {
@@ -54,13 +54,9 @@ if (STORAGE_TYPE === 'cloudinary') {
                 const sanitizedName = originalName.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
                 return `${timestamp}-${sanitizedName}`;
             },
-            resource_type: 'auto', // Allow all file types (images, videos, raw files)
-            allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'svg', 'ico', 
-                              'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp',
-                              'mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a',
-                              'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', '7z', 'tar', 'gz',
-                              'xls', 'xlsx', 'ppt', 'pptx', 'csv', 'json', 'xml', 'html', 'css', 'js',
-                              'stl', 'obj', 'fbx', 'dae', 'ply', '3mf', 'gltf'] // Add 3D model formats
+            resource_type: 'auto', // Let AI determine the best resource type
+            // Remove allowed_formats restriction to let AI handle all file types
+            allowed_formats: false // Allow ALL file formats - AI will optimize
         },
     });
 
