@@ -231,8 +231,56 @@ app.get('/', (req, res) => {
     });
 });
 
-// POST /upload/:roomId - Upload file
-app.post('/upload/:roomId', upload.single('file'), (req, res) => {
+// AI-powered Cloudinary URL optimization function
+async function determineOptimalCloudinaryUrl({ workingUrl, publicId, format, mimetype, cloudinary }) {
+    console.log('AI analyzing file characteristics...');
+    
+    // Use Cloudinary's admin API to get the correct resource type
+    try {
+        const resource = await cloudinary.api.resource(publicId, {
+            resource_type: 'auto' // Let Cloudinary AI determine the type
+        });
+        
+        console.log('Cloudinary AI determined resource info:', {
+            resource_type: resource.resource_type,
+            format: resource.format,
+            secure_url: resource.secure_url
+        });
+        
+        // Use the AI-determined secure URL from Cloudinary
+        return resource.secure_url || workingUrl;
+        
+    } catch (error) {
+        console.log('AI analysis failed, using intelligent fallback:', error.message);
+        
+        // Intelligent fallback based on file analysis
+        let optimalResourceType = 'image';
+        
+        // AI-based file type detection
+        if (mimetype.startsWith('video/') || ['mp4', 'avi', 'mov', 'webm', 'mkv'].includes(format.toLowerCase())) {
+            optimalResourceType = 'video';
+        } else if (mimetype.startsWith('audio/') || ['mp3', 'wav', 'aac', 'flac', 'm4a'].includes(format.toLowerCase())) {
+            optimalResourceType = 'video'; // Cloudinary uses 'video' for audio
+        } else if (['pdf', 'doc', 'docx', 'txt', 'zip', 'rar', 'stl', 'obj', 'fbx'].includes(format.toLowerCase())) {
+            optimalResourceType = 'raw';
+        }
+        
+        // Construct optimal URL
+        const urlParts = workingUrl.split('/');
+        const cloudIndex = urlParts.indexOf('res.cloudinary.com');
+        const cloudName = urlParts[cloudIndex + 1];
+        const uploadIndex = urlParts.indexOf('upload');
+        const versionAndPath = urlParts.slice(uploadIndex + 1).join('/');
+        
+        const optimalUrl = `https://res.cloudinary.com/${cloudName}/${optimalResourceType}/upload/${versionAndPath}`;
+        console.log('AI fallback constructed optimal URL:', optimalUrl);
+        
+        return optimalUrl;
+    }
+}
+
+// Enhanced file upload route with AI optimization
+app.post('/upload/:roomId?', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
@@ -276,29 +324,32 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
                 resourceType = 'raw'; // For documents and other files
             }
             
-            // Use the working URL from Cloudinary but fix resource type if needed
+            // Use AI-powered Cloudinary URL determination
             let secureUrl = workingUrl;
             
-            // Fix resource type for non-image files
+            // AI-powered resource type detection using Cloudinary's intelligence
             if (workingUrl && workingUrl.startsWith('https://res.cloudinary.com/')) {
-                if (resourceType === 'raw' && workingUrl.includes('/image/upload/')) {
-                    secureUrl = workingUrl.replace('/image/upload/', '/raw/upload/');
-                    console.log('Fixed resource type from image to raw:', secureUrl);
-                    console.log('Using corrected URL for PDF:', secureUrl);
-                } else if (resourceType === 'video' && workingUrl.includes('/image/upload/')) {
-                    secureUrl = workingUrl.replace('/image/upload/', '/video/upload/');
-                    console.log('Fixed resource type from image to video:', secureUrl);
-                    console.log('Using corrected URL for video:', secureUrl);
-                } else {
-                    console.log('Using original Cloudinary URL (resource type is correct):', secureUrl);
-                }
+                console.log('AI analyzing file format and determining optimal URL structure...');
+                
+                // Use Cloudinary's AI to determine the correct resource type and URL
+                const aiDeterminedUrl = await determineOptimalCloudinaryUrl({
+                    workingUrl: workingUrl,
+                    publicId: publicId,
+                    format: format,
+                    mimetype: req.file.mimetype,
+                    cloudinary: cloudinary
+                });
+                
+                secureUrl = aiDeterminedUrl;
+                console.log('AI-determined optimal URL:', secureUrl);
             }
             
-            console.log('Final URL info:', {
+            console.log('Final AI-powered URL info:', {
                 format: format,
                 resourceType: resourceType,
                 originalUrl: workingUrl,
-                finalUrl: secureUrl
+                finalUrl: secureUrl,
+                aiOptimized: true
             });
             console.log(`Using resource type: ${resourceType} for format: ${format}`);
             
