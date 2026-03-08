@@ -138,12 +138,15 @@ function getFileMetadata(roomId, filename) {
     const metadataPath = getMetadataPath(roomId);
     
     if (!fs.existsSync(metadataPath)) {
+        console.log(`Metadata file not found for room: ${roomId}`);
         return null;
     }
     
     try {
         const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
-        return metadata[filename] || null;
+        const fileData = metadata[filename];
+        console.log(`Retrieved metadata for ${filename}:`, JSON.stringify(fileData, null, 2));
+        return fileData || null;
     } catch (error) {
         console.error('Error reading metadata:', error);
         return null;
@@ -329,11 +332,19 @@ app.get('/file/:roomId/:filename', (req, res) => {
     try {
         const roomId = req.params.roomId;
         const filename = decodeURIComponent(req.params.filename);
+        
+        console.log(`File request: Room=${roomId}, File=${filename}`);
+        
         const metadata = getFileMetadata(roomId, filename);
         
         if (!metadata) {
+            console.log(`File metadata not found for: ${filename}`);
             return res.status(404).json({ error: 'File not found' });
         }
+        
+        console.log(`File metadata found:`, JSON.stringify(metadata, null, 2));
+        console.log(`Storage type: ${STORAGE_TYPE}`);
+        console.log(`Has Cloudinary data:`, !!metadata.cloudinaryData);
         
         if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
             // Check if we have a Cloudinary URL
@@ -342,7 +353,7 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 res.redirect(metadata.cloudinaryData.secure_url);
             } else {
                 console.error('Missing Cloudinary URL for file:', filename);
-                console.error('Cloudinary data:', metadata.cloudinaryData);
+                console.error('Cloudinary data:', JSON.stringify(metadata.cloudinaryData, null, 2));
                 return res.status(404).json({ error: 'File URL not found - please re-upload the file' });
             }
         } else {
