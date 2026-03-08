@@ -306,16 +306,29 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
                     }
                 }
                 
-                // Reconstruct URL with correct resource type
-                secureUrl = `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${version}/${pathAfterVersion}`;
+                // Try multiple URL formats to find one that works
+                const urlCandidates = [
+                    // Format 1: Correct resource type with version
+                    `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${version}/${pathAfterVersion}`,
+                    // Format 2: Original working URL (in case it actually works)
+                    workingUrl,
+                    // Format 3: Simple format without version
+                    `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${publicId}.${format}`,
+                    // Format 4: Use image/upload as fallback
+                    `https://res.cloudinary.com/${cloudName}/image/upload/${version}/${pathAfterVersion}`
+                ];
                 
-                console.log('Comprehensive URL fix:', {
+                // Use the first candidate that has the correct structure
+                secureUrl = urlCandidates[0];
+                
+                console.log('Comprehensive URL fix with candidates:', {
                     original: workingUrl,
                     format: format,
                     correctResourceType: correctResourceType,
                     version: version,
                     pathAfterVersion: pathAfterVersion,
-                    final: secureUrl
+                    candidates: urlCandidates,
+                    selected: secureUrl
                 });
             } else if (!workingUrl || !workingUrl.startsWith('https://res.cloudinary.com')) {
                 // Generate proper Cloudinary URL as fallback
