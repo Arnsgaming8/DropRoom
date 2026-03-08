@@ -57,7 +57,8 @@ if (STORAGE_TYPE === 'cloudinary') {
                               'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp',
                               'mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a',
                               'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', '7z', 'tar', 'gz',
-                              'xls', 'xlsx', 'ppt', 'pptx', 'csv', 'json', 'xml', 'html', 'css', 'js']
+                              'xls', 'xlsx', 'ppt', 'pptx', 'csv', 'json', 'xml', 'html', 'css', 'js',
+                              'stl', 'obj', 'fbx', 'dae', 'ply', '3mf', 'gltf'] // Add 3D model formats
         },
     });
 
