@@ -279,30 +279,26 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
             // Use the working URL from Cloudinary response
             let secureUrl = workingUrl;
             
-            // If the working URL doesn't exist or has wrong resource type, generate a proper one
-            if (!secureUrl || !secureUrl.startsWith('https://res.cloudinary.com') || 
-                (resourceType === 'raw' && secureUrl.includes('/image/upload/')) ||
-                (resourceType === 'video' && secureUrl.includes('/image/upload/'))) {
+            // If the working URL has wrong resource type, fix it
+            if (workingUrl && workingUrl.startsWith('https://res.cloudinary.com') && 
+                ((resourceType === 'raw' && workingUrl.includes('/image/upload/')) ||
+                 (resourceType === 'video' && workingUrl.includes('/image/upload/')))) {
                 
+                // Extract the version and file path from working URL
+                const urlParts = workingUrl.split('/');
+                const versionIndex = urlParts.indexOf('upload') - 1;
+                const version = urlParts[versionIndex];
+                const filePath = urlParts.slice(versionIndex + 2).join('/'); // Skip 'upload' and folder
+                
+                // Reconstruct URL with correct resource type
+                secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${version}/${filePath}`;
+                console.log('Fixed resource type URL:', secureUrl);
+            } else if (!workingUrl || !workingUrl.startsWith('https://res.cloudinary.com')) {
                 // Generate proper Cloudinary URL with correct resource type
-                // Use the exact format Cloudinary expects
                 secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
-                console.log('Generated corrected URL:', secureUrl);
-                console.log('URL structure check:', {
-                    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-                    resource_type: resourceType,
-                    public_id: publicId,
-                    format: format
-                });
+                console.log('Generated new URL:', secureUrl);
             } else {
                 console.log('Using Cloudinary working URL:', secureUrl);
-            }
-            
-            // Final validation - ensure URL is properly formatted
-            if (!secureUrl.includes(`${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/`)) {
-                console.warn('URL format may be incorrect, forcing proper format');
-                secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
-                console.log('Forced corrected URL:', secureUrl);
             }
             
             console.log(`Final secure_url: ${secureUrl}`);
