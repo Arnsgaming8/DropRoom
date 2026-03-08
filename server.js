@@ -244,8 +244,24 @@ app.post('/upload/:roomId', upload.single('file'), (req, res) => {
             
             console.log('Extracted data:', { publicId, format, bytes });
             
-            // Generate the secure_url from public_id
-            const secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${publicId}.${format}`;
+            // Determine Cloudinary resource type based on file format
+            const imageFormats = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'svg', 'ico'];
+            const videoFormats = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp'];
+            const audioFormats = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a'];
+            
+            let resourceType = 'image'; // default
+            if (videoFormats.includes(format.toLowerCase())) {
+                resourceType = 'video';
+            } else if (audioFormats.includes(format.toLowerCase())) {
+                resourceType = 'video'; // Cloudinary uses 'video' for audio too
+            } else {
+                resourceType = 'raw'; // For documents and other files
+            }
+            
+            // Generate the secure_url with correct resource type
+            const secureUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${publicId}.${format}`;
+            
+            console.log(`Using resource type: ${resourceType} for format: ${format}`);
             
             cloudinaryData = {
                 public_id: publicId,
