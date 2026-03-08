@@ -429,9 +429,16 @@ class DropRoom {
     displayFiles(files) {
         const filesList = document.getElementById('files-list');
         
-        if (!filesList) return;
+        console.log('displayFiles called with:', files);
+        console.log('filesList element:', filesList);
+        
+        if (!filesList) {
+            console.error('files-list element not found!');
+            return;
+        }
 
         if (files.length === 0) {
+            console.log('No files to display, showing empty state');
             filesList.innerHTML = `
                 <div class="empty-state">
                     <p>No files uploaded yet</p>
@@ -440,6 +447,7 @@ class DropRoom {
             return;
         }
 
+        console.log('Displaying', files.length, 'files');
         filesList.innerHTML = files.map(file => {
             const isOwner = file.uploaderId === this.uploaderId;
             const deleteButton = isOwner ? `
@@ -472,6 +480,8 @@ class DropRoom {
                 </div>
             `;
         }).join('');
+        
+        console.log('Files displayed successfully');
     }
 
     openFile(filename) {
