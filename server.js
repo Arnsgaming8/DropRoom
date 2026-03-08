@@ -47,10 +47,12 @@ if (STORAGE_TYPE === 'cloudinary') {
                 return file.originalname.split('.').pop() || 'jpg';
             },
             public_id: (req, file) => {
-                // Create unique ID with timestamp
+                // Create unique ID with timestamp and sanitized filename
                 const timestamp = Date.now();
                 const originalName = file.originalname.split('.')[0];
-                return `${timestamp}-${originalName}`;
+                // Remove special characters and spaces from filename
+                const sanitizedName = originalName.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+                return `${timestamp}-${sanitizedName}`;
             },
             resource_type: 'auto', // Allow all file types (images, videos, raw files)
             allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'svg', 'ico', 
