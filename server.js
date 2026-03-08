@@ -43,7 +43,7 @@ if (STORAGE_TYPE === 'cloudinary') {
         params: {
             folder: (req, file) => `droproom/${req.params.roomId || 'default'}`,
             format: async (req, file) => {
-                // Keep original format or default to jpg
+                // Keep original format
                 return file.originalname.split('.').pop() || 'jpg';
             },
             public_id: (req, file) => {
@@ -51,7 +51,13 @@ if (STORAGE_TYPE === 'cloudinary') {
                 const timestamp = Date.now();
                 const originalName = file.originalname.split('.')[0];
                 return `${timestamp}-${originalName}`;
-            }
+            },
+            resource_type: 'auto', // Allow all file types (images, videos, raw files)
+            allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'svg', 'ico', 
+                              'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp',
+                              'mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a',
+                              'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', '7z', 'tar', 'gz',
+                              'xls', 'xlsx', 'ppt', 'pptx', 'csv', 'json', 'xml', 'html', 'css', 'js']
         },
     });
 
