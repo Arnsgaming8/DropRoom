@@ -336,8 +336,15 @@ app.get('/file/:roomId/:filename', (req, res) => {
         }
         
         if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
-            // Redirect to Cloudinary URL
-            res.redirect(metadata.cloudinaryData.secure_url);
+            // Check if we have a Cloudinary URL
+            if (metadata.cloudinaryData.secure_url) {
+                console.log(`Redirecting to Cloudinary URL: ${metadata.cloudinaryData.secure_url}`);
+                res.redirect(metadata.cloudinaryData.secure_url);
+            } else {
+                console.error('Missing Cloudinary URL for file:', filename);
+                console.error('Cloudinary data:', metadata.cloudinaryData);
+                return res.status(404).json({ error: 'File URL not found - please re-upload the file' });
+            }
         } else {
             // Serve file from local storage
             const filePath = path.join(__dirname, 'storage', roomId, filename);
@@ -384,9 +391,17 @@ app.get('/download/:roomId/:filename', (req, res) => {
         }
         
         if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
-            // Redirect to Cloudinary download URL
-            const downloadUrl = metadata.cloudinaryData.secure_url.replace('/upload/', '/upload/fl_attachment/');
-            res.redirect(downloadUrl);
+            // Check if we have a Cloudinary URL
+            if (metadata.cloudinaryData.secure_url) {
+                // Redirect to Cloudinary download URL
+                const downloadUrl = metadata.cloudinaryData.secure_url.replace('/upload/', '/upload/fl_attachment/');
+                console.log(`Redirecting to Cloudinary download URL: ${downloadUrl}`);
+                res.redirect(downloadUrl);
+            } else {
+                console.error('Missing Cloudinary URL for file download:', filename);
+                console.error('Cloudinary data:', metadata.cloudinaryData);
+                return res.status(404).json({ error: 'File URL not found - please re-upload the file' });
+            }
         } else {
             // Download from local storage
             const filePath = path.join(__dirname, 'storage', roomId, filename);
