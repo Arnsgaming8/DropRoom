@@ -531,12 +531,13 @@ app.use('*', (req, res) => {
 // Start server
 app.listen(PORT, () => {
     console.log(`🚀 DropRoom Backend Server running on port ${PORT}`);
-    console.log(`📁 Storage directory: ${STORAGE_DIR}`);
+    console.log(`📁 Storage type: ${STORAGE_TYPE}`);
     console.log(`🔗 API endpoints:`);
     console.log(`   POST /upload/:roomId - Upload file`);
     console.log(`   GET  /list/:roomId - List files`);
     console.log(`   GET  /file/:roomId/:filename - Serve file`);
     console.log(`   GET  /health - Health check`);
+    console.log(`🌍 Frontend URL: ${FRONTEND_URL}`);
 });
 
 // Graceful shutdown
