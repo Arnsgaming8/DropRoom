@@ -93,7 +93,12 @@ class DropRoom {
         if (createRoomBtn) {
             createRoomBtn.addEventListener('click', () => {
                 console.log('Create room button clicked!');
-                this.createRoom();
+                try {
+                    this.createRoom();
+                } catch (error) {
+                    console.error('Error creating room:', error);
+                    this.showToast('Failed to create room', 'error');
+                }
             });
             console.log('Create room button event added');
         }
