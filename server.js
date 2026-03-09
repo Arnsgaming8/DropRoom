@@ -473,22 +473,22 @@ app.post('/upload/:roomId?', upload.single('file'), async (req, res) => {
             
             console.log('AI extracted metadata:', { publicId, format, bytes, workingUrl });
             
+            // Determine what resource type should be based on format (declare in outer scope)
+            let correctResourceType = 'image'; // default
+            if (['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', '3gp'].includes(format.toLowerCase())) {
+                correctResourceType = 'video';
+            } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a'].includes(format.toLowerCase())) {
+                correctResourceType = 'video'; // Cloudinary uses 'video' for audio too
+            } else {
+                correctResourceType = 'raw'; // For documents and other files
+            }
+            
             // AI-powered Cloudinary URL determination with comprehensive fallbacks
             let secureUrl = workingUrl;
             
             // AI-powered resource type detection using Cloudinary's intelligence
             if (workingUrl && workingUrl.startsWith('https://res.cloudinary.com/')) {
                 console.log('AI analyzing file format and generating all possible URLs...');
-                
-                // Determine what resource type should be based on format
-                let correctResourceType = 'image'; // default
-                if (['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', '3gp'].includes(format.toLowerCase())) {
-                    correctResourceType = 'video';
-                } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a'].includes(format.toLowerCase())) {
-                    correctResourceType = 'video'; // Cloudinary uses 'video' for audio too
-                } else {
-                    correctResourceType = 'raw'; // For documents and other files
-                }
                 
                 // Extract URL components
                 const urlParts = workingUrl.split('/');
