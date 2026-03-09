@@ -54,7 +54,28 @@ if (STORAGE_TYPE === 'cloudinary') {
                 const sanitizedName = originalName.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
                 return `${timestamp}-${sanitizedName}`;
             },
-            resource_type: 'auto', // Let AI determine the best resource type
+            resource_type: (req, file) => {
+                // AI-powered resource type detection
+                const mimetype = file.mimetype;
+                const extension = file.originalname.split('.').pop().toLowerCase();
+                
+                console.log('AI determining resource type for:', { mimetype, extension });
+                
+                // Smart AI-based resource type detection
+                if (mimetype.startsWith('image/') && ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].includes(extension)) {
+                    console.log('AI: Using image resource type');
+                    return 'image';
+                } else if (mimetype.startsWith('video/') || ['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv'].includes(extension)) {
+                    console.log('AI: Using video resource type');
+                    return 'video';
+                } else if (mimetype.startsWith('audio/') || ['mp3', 'wav', 'aac', 'flac', 'm4a'].includes(extension)) {
+                    console.log('AI: Using video resource type for audio');
+                    return 'video';
+                } else {
+                    console.log('AI: Using raw resource type for documents');
+                    return 'raw'; // All documents, PDFs, archives, code files, etc.
+                }
+            },
             // Remove allowed_formats restriction to let AI handle all file types
             allowed_formats: false // Allow ALL file formats - AI will optimize
         },
