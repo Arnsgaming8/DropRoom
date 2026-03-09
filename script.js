@@ -363,13 +363,23 @@ class DropRoom {
             
             // Handle completion
             xhr.addEventListener('load', () => {
+                console.log('=== UPLOAD COMPLETION DEBUG ===');
                 console.log('Upload completed with status:', xhr.status);
                 console.log('Upload response:', xhr.responseText);
+                console.log('Current this.roomId before upload:', this.roomId);
                 
                 if (xhr.status === 200) {
                     try {
                         const result = JSON.parse(xhr.responseText);
                         console.log('Upload result:', result);
+                        console.log('Response room ID:', result.roomId);
+                        console.log('Current this.roomId after upload:', this.roomId);
+                        
+                        // IMPORTANT: Preserve the original room ID - don't overwrite it!
+                        if (result.roomId && result.roomId !== this.roomId) {
+                            console.warn('Room ID mismatch! Response:', result.roomId, 'Current:', this.roomId);
+                            console.warn('Preserving original room ID:', this.roomId);
+                        }
                         
                         // Update progress toast to success
                         if (progressToast) {
@@ -395,6 +405,7 @@ class DropRoom {
                         progressToast.className = 'toast show error';
                     }
                 }
+                console.log('=== UPLOAD COMPLETION DEBUG END ===');
             });
             
             // Handle errors
