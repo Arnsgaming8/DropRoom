@@ -871,8 +871,30 @@ app.listen(PORT, () => {
     console.log(`   GET  /health - Health check`);
     console.log(`🌍 Frontend URL: ${FRONTEND_URL}`);
     
-    // Start monitoring after server is ready
-    startMonitoring();
+    // Start monitoring after server is ready (delayed to not block startup)
+    setTimeout(() => {
+        startMonitoring();
+    }, 5000); // Start monitoring after 5 seconds
+});
+
+// Handle Render's SIGTERM for graceful shutdown
+process.on('SIGTERM', async () => {
+    console.log('SIGTERM received, shutting down gracefully');
+    
+    if (healthCheckInterval) {
+        clearInterval(healthCheckInterval);
+    }
+    
+    // Send shutdown notification (non-blocking)
+    sendDiscordNotification(
+        `🟡 **DropRoom Server Shutting Down**\n\n` +
+        `• Server: ${process.env.RENDER_EXTERNAL_URL || 'Local'}\n` +
+        `• Uptime: ${Math.floor((new Date() - serverStartTime) / 1000 / 60)} minutes\n` +
+        `• Time: ${new Date().toLocaleString()}\n\n` +
+        `Server is shutting down gracefully. 🟡`
+    );
+    
+    process.exit(0);
 });
 
 // Graceful shutdown
