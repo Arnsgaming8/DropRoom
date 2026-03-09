@@ -108,24 +108,33 @@ class DropRoom {
     }
 
     initRoomPage() {
+        console.log('=== INIT ROOM PAGE DEBUG ===');
         // Get room ID from URL
         const urlParams = new URLSearchParams(window.location.search);
-        this.roomId = urlParams.get('room');
+        const urlRoomId = urlParams.get('room');
+        
+        console.log('URL parameter room:', urlRoomId);
+        console.log('Current URL:', window.location.search);
+        console.log('Full URL:', window.location.href);
+        
+        this.roomId = urlRoomId;
         
         if (!this.roomId) {
+            console.error('No room ID provided in URL!');
             this.showToast('No room ID provided', 'error');
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 2000);
             return;
         }
-
+        
+        console.log('Final room ID being used:', this.roomId);
+        
         // Display room ID
         const roomIdElement = document.getElementById('room-id');
         if (roomIdElement) {
             roomIdElement.textContent = this.roomId;
         }
 
+        console.log('=== INIT ROOM PAGE DEBUG END ===');
+        
         // Initialize room functionality
         this.initRoomFunctionality();
         this.loadFiles();
