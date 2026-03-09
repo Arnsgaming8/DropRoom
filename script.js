@@ -344,75 +344,98 @@ class DropRoom {
     }
 
     async uploadFile(file) {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('uploaderId', this.uploaderId);
-        
-        const xhr = new XMLHttpRequest();
-        xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable && progressToast) {
-                const percentComplete = Math.round((e.loaded / e.total) * 100);
-                progressToast.textContent = `Uploading ${file.name}... ${percentComplete}%`;
-                progressToast.className = `toast show info`;
-            }
-        });
-        
-        // Handle completion
-        xhr.addEventListener('load', () => {
-            console.log('=== UPLOAD COMPLETION DEBUG ===');
-            console.log('Upload completed with status:', xhr.status);
-            console.log('Upload response:', xhr.responseText);
-            console.log('Current this.roomId before upload:', this.roomId);
+        try {
+            // Create progress toast
+            const progressToast = document.createElement('div');
+            progressToast.className = 'toast info';
+            progressToast.textContent = `Preparing to upload ${file.name}...`;
+            document.body.appendChild(progressToast);
+            setTimeout(() => progressToast.classList.add('show'), 10);
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('uploaderId', this.uploaderId);
             
-            if (xhr.status === 200) {
-                try {
-                    const result = JSON.parse(xhr.responseText);
-                    console.log('Upload result:', result);
-                    console.log('Response room ID:', result.roomId);
-                    console.log('Current this.roomId after upload:', this.roomId);
-                    
-                    // CRITICAL FIX: Only update room ID if it's empty or if response returns a different room
-                    // This prevents overwriting existing room IDs
-                    if (!this.roomId || (result.roomId && result.roomId !== this.roomId)) {
-                        console.warn('Room ID mismatch! Response:', result.roomId, 'Current:', this.roomId);
-                        console.warn('Updating room ID to:', result.roomId);
-                        this.roomId = result.roomId;
+            const xhr = new XMLHttpRequest();
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable && progressToast) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    progressToast.textContent = `Uploading ${file.name}... ${percentComplete}%`;
+                    progressToast.className = `toast show info`;
+                }
+            });
+            
+            // Handle completion
+            xhr.addEventListener('load', () => {
+                console.log('=== UPLOAD COMPLETION DEBUG ===');
+                console.log('Upload completed with status:', xhr.status);
+                console.log('Upload response:', xhr.responseText);
+                console.log('Current this.roomId before upload:', this.roomId);
+                
+                if (xhr.status === 200) {
+                    try {
+                        const result = JSON.parse(xhr.responseText);
+                        console.log('Upload result:', result);
+                        console.log('Response room ID:', result.roomId);
+                        console.log('Current this.roomId after upload:', this.roomId);
                         
-                        // Update room ID display
-                        const roomIdElement = document.getElementById('room-id');
-                        if (roomIdElement) {
-                            roomIdElement.textContent = this.roomId;
+                        // CRITICAL FIX: Only update room ID if it's empty or if response returns a different room
+                        // This prevents overwriting existing room IDs
+                        if (!this.roomId || (result.roomId && result.roomId !== this.roomId)) {
+                            console.warn('Room ID mismatch! Response:', result.roomId, 'Current:', this.roomId);
+                            console.warn('Updating room ID to:', result.roomId);
+                            this.roomId = result.roomId;
+                            
+                            // Update room ID display
+                            const roomIdElement = document.getElementById('room-id');
+                            if (roomIdElement) {
+                                roomIdElement.textContent = this.roomId;
+                            }
+                        } else {
+                            console.log('Room ID preserved:', this.roomId);
                         }
-                    } else {
-                        console.log('Room ID preserved:', this.roomId);
+                        
+                        // Update progress toast to success
+                        if (progressToast) {
+                            progressToast.textContent = `${file.name} uploaded successfully!`;
+                            progressToast.className = 'toast show success';
+                        }
+                        
+                        console.log('About to call loadFiles after upload...');
+                        this.loadFiles(); // Refresh file list
+                    } catch (parseError) {
+                        console.error('Failed to parse upload response:', parseError);
+                        console.error('Raw response:', xhr.responseText);
+                        if (progressToast) {
+                            progressToast.textContent = `Upload failed: Invalid response`;
+                            progressToast.className = 'toast show error';
+                        }
                     }
-                    
-                    // Update progress toast to success
+                } else {
+                    console.error('Upload failed with status:', xhr.status);
+                    console.error('Response:', xhr.responseText);
                     if (progressToast) {
-                        progressToast.textContent = `${file.name} uploaded successfully!`;
-                        progressToast.className = 'toast show success';
-                    }
-                    
-                    console.log('About to call loadFiles after upload...');
-                    this.loadFiles(); // Refresh file list
-                } catch (parseError) {
-                    console.error('Failed to parse upload response:', parseError);
-                    console.error('Raw response:', xhr.responseText);
-                    if (progressToast) {
-                        progressToast.textContent = `Upload failed: Invalid response`;
+                        progressToast.textContent = `Upload failed: ${xhr.statusText}`;
                         progressToast.className = 'toast show error';
                     }
                 }
-            } else {
-                console.error('Upload failed with status:', xhr.status);
-                console.error('Response:', xhr.responseText);
-                if (progressToast) {
-                    progressToast.textContent = `Upload failed: ${xhr.statusText}`;
-                    progressToast.className = 'toast show error';
-                }
+                
+                // Remove progress toast after a delay
+                setTimeout(() => {
+                    if (progressToast && progressToast.parentNode) {
+                        progressToast.classList.remove('show');
+                        setTimeout(() => {
+                            if (progressToast.parentNode) {
+                                progressToast.parentNode.removeChild(progressToast);
+                            }
+                        }, 300);
+                    }
+                }, 2000);
+            });
+            
             xhr.open('POST', `${this.apiBaseUrl}/upload/${this.roomId}`);
             xhr.send(formData);
-            
+                
         } catch (error) {
             console.error('Upload error:', error);
             this.showToast(`Failed to upload ${file.name}: ${error.message}`, 'error');
