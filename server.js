@@ -10,7 +10,7 @@ const mime = require('mime-types');
 // Discord webhook monitoring
 const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1480358508674285689/1NjZfNFd7nF7aguLVJE6ihPe9WwJBguagV8-uvHiwSV56Izp0e9dPGfPkBMhTogv0iB4';
 
-// Discord notification function
+// Discord notification function (non-blocking with fallback)
 async function sendDiscordNotification(message, isError = false) {
     try {
         const payload = {
@@ -25,21 +25,33 @@ async function sendDiscordNotification(message, isError = false) {
             }]
         };
 
-        const response = await fetch(DISCORD_WEBHOOK_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload)
-        });
+        // Use setTimeout to make it non-blocking and add error handling
+        setTimeout(async () => {
+            try {
+                const response = await fetch(DISCORD_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'User-Agent': 'DropRoom-Monitor/1.0'
+                    },
+                    body: JSON.stringify(payload),
+                    timeout: 5000 // 5 second timeout
+                });
 
-        if (response.ok) {
-            console.log('✅ Discord notification sent successfully');
-        } else {
-            console.log('❌ Failed to send Discord notification');
-        }
+                if (response && response.ok) {
+                    console.log('✅ Discord notification sent successfully');
+                } else {
+                    console.log('❌ Failed to send Discord notification - Response:', response?.status);
+                }
+            } catch (error) {
+                console.log('❌ Error sending Discord notification:', error.message);
+                // Silently fail to not crash the server
+            }
+        }, 0);
+        
     } catch (error) {
-        console.log('❌ Error sending Discord notification:', error.message);
+        console.log('❌ Error setting up Discord notification:', error.message);
+        // Silently fail to not crash the server
     }
 }
 
