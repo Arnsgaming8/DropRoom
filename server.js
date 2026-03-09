@@ -203,15 +203,15 @@ if (STORAGE_TYPE === 'cloudinary') {
                 console.log('AI determining resource type for:', { mimetype, extension });
                 
                 // Smart AI-based resource type detection
-                if (mimetype.startsWith('image/') && ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].includes(extension)) {
+                if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff'].includes(extension)) {
                     console.log('AI: Using image resource type');
                     return 'image';
-                } else if (mimetype.startsWith('video/') || ['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv'].includes(extension)) {
+                } else if (['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', '3gp'].includes(extension)) {
                     console.log('AI: Using video resource type');
                     return 'video';
-                } else if (mimetype.startsWith('audio/') || ['mp3', 'wav', 'aac', 'flac', 'm4a'].includes(extension)) {
+                } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma'].includes(extension)) {
                     console.log('AI: Using video resource type for audio');
-                    return 'video';
+                    return 'video'; // Cloudinary uses 'video' for audio
                 } else {
                     console.log('AI: Using raw resource type for documents');
                     return 'raw'; // All documents, PDFs, archives, code files, etc.
