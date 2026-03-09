@@ -1,10 +1,151 @@
 const express = require('express');
 const multer = require('multer');
-const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const mime = require('mime-types');
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+const cors = require('cors');
+const mime = require('mime-types');
+
+// Discord webhook monitoring
+const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1480358508674285689/1NjZfNFd7nF7aguLVJE6ihPe9WwJBguagV8-uvHiwSV56Izp0e9dPGfPkBMhTogv0iB4';
+
+// Discord notification function
+async function sendDiscordNotification(message, isError = false) {
+    try {
+        const payload = {
+            embeds: [{
+                title: isError ? '🚨 DropRoom Server Alert' : '✅ DropRoom Server Status',
+                description: message,
+                color: isError ? 0xFF0000 : 0x00FF00,
+                timestamp: new Date().toISOString(),
+                footer: {
+                    text: 'DropRoom Monitoring System'
+                }
+            }]
+        };
+
+        const response = await fetch(DISCORD_WEBHOOK_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            console.log('✅ Discord notification sent successfully');
+        } else {
+            console.log('❌ Failed to send Discord notification');
+        }
+    } catch (error) {
+        console.log('❌ Error sending Discord notification:', error.message);
+    }
+}
+
+// Server monitoring variables
+let serverStartTime = new Date();
+let isServerHealthy = true;
+let healthCheckInterval;
+
+// Health check function
+async function performHealthCheck() {
+    try {
+        // Check if server is responding
+        const response = await fetch(`${process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000'}/health`, {
+            timeout: 5000
+        });
+        
+        if (response.ok && !isServerHealthy) {
+            // Server came back online
+            isServerHealthy = true;
+            await sendDiscordNotification(
+                `🟢 **DropRoom Server is BACK ONLINE!**\n\n` +
+                `• Server: ${process.env.RENDER_EXTERNAL_URL || 'Local'}\n` +
+                `• Uptime: ${Math.floor((new Date() - serverStartTime) / 1000 / 60)} minutes\n` +
+                `• Time: ${new Date().toLocaleString()}\n\n` +
+                `All services are now operational. ✅`
+            );
+        }
+    } catch (error) {
+        // Server might be offline
+        if (isServerHealthy) {
+            isServerHealthy = false;
+            await sendDiscordNotification(
+                `🔴 **DropRoom Server is OFFLINE!**\n\n` +
+                `• Server: ${process.env.RENDER_EXTERNAL_URL || 'Local'}\n` +
+                `• Error: ${error.message}\n` +
+                `• Time: ${new Date().toLocaleString()}\n\n` +
+                `Please check the server status immediately! 🚨`,
+                true
+            );
+        }
+    }
+}
+
+// Start monitoring
+function startMonitoring() {
+    console.log('🔍 Starting server monitoring...');
+    
+    // Send startup notification
+    sendDiscordNotification(
+        `🚀 **DropRoom Server Started**\n\n` +
+        `• Server: ${process.env.RENDER_EXTERNAL_URL || 'Local'}\n` +
+        `• Environment: ${process.env.NODE_ENV || 'development'}\n` +
+        `• Time: ${new Date().toLocaleString()}\n\n` +
+        `Server is now online and monitoring activated. 🟢`
+    );
+    
+    // Set up health checks every 30 seconds
+    healthCheckInterval = setInterval(performHealthCheck, 30000);
+}
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+    console.log('🛑 Server shutting down...');
+    
+    if (healthCheckInterval) {
+        clearInterval(healthCheckInterval);
+    }
+    
+    await sendDiscordNotification(
+        `🟡 **DropRoom Server Shutting Down**\n\n` +
+        `• Server: ${process.env.RENDER_EXTERNAL_URL || 'Local'}\n` +
+        `• Uptime: ${Math.floor((new Date() - serverStartTime) / 1000 / 60)} minutes\n` +
+        `• Time: ${new Date().toLocaleString()}\n\n` +
+        `Server is shutting down gracefully. 🟡`
+    );
+    
+    process.exit(0);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', async (error) => {
+    console.error('💥 Uncaught Exception:', error);
+    await sendDiscordNotification(
+        `💥 **DropRoom Server CRITICAL ERROR!**\n\n` +
+        `• Server: ${process.env.RENDER_EXTERNAL_URL || 'Local'}\n` +
+        `• Error: ${error.message}\n` +
+        `• Stack: ${error.stack?.substring(0, 1000)}...\n` +
+        `• Time: ${new Date().toLocaleString()}\n\n` +
+        `Server encountered a critical error! 🚨`,
+        true
+    );
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', async (reason, promise) => {
+    console.error('💥 Unhandled Rejection:', reason);
+    await sendDiscordNotification(
+        `💥 **DropRoom Server Promise Rejection!**\n\n` +
+        `• Server: ${process.env.RENDER_EXTERNAL_URL || 'Local'}\n` +
+        `• Reason: ${reason}\n` +
+        `• Time: ${new Date().toLocaleString()}\n\n` +
+        `Server encountered a promise rejection! 🚨`,
+        true
+    );
+});
+
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
@@ -708,6 +849,17 @@ app.use('*', (req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: Math.floor(process.uptime()),
+        environment: process.env.NODE_ENV || 'development',
+        storage: STORAGE_TYPE
+    });
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`🚀 DropRoom Backend Server running on port ${PORT}`);
@@ -718,6 +870,9 @@ app.listen(PORT, () => {
     console.log(`   GET  /file/:roomId/:filename - Serve file`);
     console.log(`   GET  /health - Health check`);
     console.log(`🌍 Frontend URL: ${FRONTEND_URL}`);
+    
+    // Start monitoring after server is ready
+    startMonitoring();
 });
 
 // Graceful shutdown
