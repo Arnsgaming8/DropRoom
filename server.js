@@ -607,14 +607,8 @@ app.post('/upload/:roomId?', upload.single('file'), async (req, res) => {
             console.log(`Using resource type: ${correctResourceType} for format: ${format}`);
         }
         
-        // Store file metadata
-        const roomPath = path.join(storageDir, roomId);
-        if (!fs.existsSync(roomPath)) {
-            fs.mkdirSync(roomPath, { recursive: true });
-        }
-        
-        const metadataPath = path.join(roomPath, `${filename}.json`);
-        fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+        // Store file metadata using the centralized function
+        saveFileMetadata(roomId, filename, uploaderId, cloudinaryData);
         
         console.log(`✅ AI-powered upload complete: ${filename} in room ${roomId}`);
         console.log('=== AI-Powered Upload Complete ===');
