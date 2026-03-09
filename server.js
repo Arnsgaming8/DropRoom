@@ -489,11 +489,13 @@ app.post('/upload/:roomId?', upload.single('file'), async (req, res) => {
             console.log('AI extracted metadata:', { publicId, format, bytes, workingUrl });
             
             // Determine what resource type should be based on format (declare in outer scope)
-            let correctResourceType = 'image'; // default
-            if (['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', '3gp'].includes(format.toLowerCase())) {
+            let correctResourceType = 'raw'; // default to raw for safety
+            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff'].includes(format.toLowerCase())) {
+                correctResourceType = 'image';
+            } else if (['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', '3gp'].includes(format.toLowerCase())) {
                 correctResourceType = 'video';
-            } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a'].includes(format.toLowerCase())) {
-                correctResourceType = 'video'; // Cloudinary uses 'video' for audio too
+            } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma'].includes(format.toLowerCase())) {
+                correctResourceType = 'video'; // Cloudinary uses 'video' for audio
             } else {
                 correctResourceType = 'raw'; // For documents and other files
             }
