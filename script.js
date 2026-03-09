@@ -433,6 +433,15 @@ class DropRoom {
                 }, 2000);
             });
             
+            // Handle errors
+            xhr.addEventListener('error', () => {
+                console.error('Upload network error');
+                if (progressToast) {
+                    progressToast.textContent = `Upload failed: Network error`;
+                    progressToast.className = 'toast show error';
+                }
+            });
+            
             xhr.open('POST', `${this.apiBaseUrl}/upload/${this.roomId}`);
             xhr.send(formData);
                 
