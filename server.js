@@ -166,6 +166,9 @@ const PORT = process.env.PORT || 10000; // Use Render's PORT or fallback to 1000
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const FRONTEND_URL = process.env.FRONTEND_URL || '*';
 
+// Storage directory for local file metadata
+const storageDir = path.join(__dirname, 'storage');
+
 // Middleware
 app.use(cors({
     origin: '*', // Allow all origins for now
