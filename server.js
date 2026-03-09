@@ -216,9 +216,8 @@ if (STORAGE_TYPE === 'cloudinary') {
                     console.log('AI: Using raw resource type for documents');
                     return 'raw'; // All documents, PDFs, archives, code files, etc.
                 }
-            },
-            // Remove allowed_formats restriction to let AI handle all file types
-            allowed_formats: false // Allow ALL file formats - AI will optimize
+            }
+            // Completely remove allowed_formats to accept ALL file types
         },
     });
 
@@ -444,43 +443,35 @@ app.post('/upload/:roomId?', upload.single('file'), async (req, res) => {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        const roomId = req.params.roomId;
-        const uploaderId = req.body.uploaderId;
-        const filename = req.file.originalname;
+        const roomId = req.params.roomId || uuidv4();
+        const originalName = req.file.originalname;
+        const timestamp = Date.now();
+        const sanitizedName = originalName.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+        const filename = `${timestamp}-${sanitizedName}`;
         
-        let cloudinaryData = null;
+        console.log('AI processing file:', { originalName, filename, roomId });
+        
+        // Get file metadata
+        let metadata = {
+            originalName: originalName,
+            filename: filename,
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+            uploadedAt: new Date().toISOString(),
+            uploaderId: req.body.uploaderId || 'anonymous'
+        };
+        
+        // Handle Cloudinary storage
         if (STORAGE_TYPE === 'cloudinary') {
-            console.log('Cloudinary upload response:', JSON.stringify(req.file, null, 2));
+            console.log('AI analyzing Cloudinary response...');
+            console.log('Full Cloudinary response:', req.file);
             
-            // Handle different Cloudinary response structures
             const publicId = req.file.public_id || req.file.filename || req.file.path;
             const format = req.file.format || req.file.originalname.split('.').pop() || 'jpg';
             const bytes = req.file.size || req.file.bytes || 0;
-            
-            // Use the working URL from the path field if available
             const workingUrl = req.file.path || req.file.secure_url;
             
-            console.log('Extracted data:', { publicId, format, bytes });
-            console.log('Working URL from Cloudinary:', workingUrl);
-            console.log('Cloudinary environment:', {
-                cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-                api_key: process.env.CLOUDINARY_API_KEY ? 'SET' : 'NOT_SET',
-                api_secret: process.env.CLOUDINARY_API_SECRET ? 'SET' : 'NOT_SET'
-            });
-            
-            // Determine Cloudinary resource type based on file format
-            const imageFormats = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'svg', 'ico'];
-            const videoFormats = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp'];
-            const audioFormats = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a'];
-            
-            let resourceType = 'image'; // default
-            if (videoFormats.includes(format.toLowerCase())) {
-                resourceType = 'video';
-            } else if (audioFormats.includes(format.toLowerCase())) {
-                resourceType = 'video'; // Cloudinary uses 'video' for audio too
-            } else {
-                resourceType = 'raw'; // For documents and other files
-            }
+            console.log('AI extracted metadata:', { publicId, format, bytes, workingUrl });
             
             // AI-powered Cloudinary URL determination with comprehensive fallbacks
             let secureUrl = workingUrl;
@@ -491,9 +482,9 @@ app.post('/upload/:roomId?', upload.single('file'), async (req, res) => {
                 
                 // Determine what resource type should be based on format
                 let correctResourceType = 'image'; // default
-                if (videoFormats.includes(format.toLowerCase())) {
+                if (['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', '3gp'].includes(format.toLowerCase())) {
                     correctResourceType = 'video';
-                } else if (audioFormats.includes(format.toLowerCase())) {
+                } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a'].includes(format.toLowerCase())) {
                     correctResourceType = 'video'; // Cloudinary uses 'video' for audio too
                 } else {
                     correctResourceType = 'raw'; // For documents and other files
@@ -525,44 +516,44 @@ app.post('/upload/:roomId?', upload.single('file'), async (req, res) => {
                     // 3. Corrected resource type without version
                     `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${pathAfterVersion}`,
                     
-                    // 4. Original resource type with version (fallback)
-                    `https://res.cloudinary.com/${cloudName}/image/upload/${version}/${pathAfterVersion}`,
-                    
-                    // 5. Original resource type without version
-                    `https://res.cloudinary.com/${cloudName}/image/upload/${pathAfterVersion}`,
-                    
-                    // 6. Using public_id directly
+                    // 4. Using public_id directly
                     `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${publicId}.${format}`,
                     
-                    // 7. Using public_id with version
+                    // 5. Using public_id with version
                     `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/v1/${publicId}.${format}`,
                     
-                    // 8. Auto resource type (Cloudinary's auto-detection)
+                    // 6. Auto resource type (Cloudinary's auto-detection)
                     `https://res.cloudinary.com/${cloudName}/auto/upload/${version}/${pathAfterVersion}`,
                     
-                    // 9. Raw resource type (for documents)
+                    // 7. Raw resource type (for documents)
                     `https://res.cloudinary.com/${cloudName}/raw/upload/${version}/${pathAfterVersion}`,
                     
-                    // 10. Video resource type (for media)
+                    // 8. Video resource type (for media)
                     `https://res.cloudinary.com/${cloudName}/video/upload/${version}/${pathAfterVersion}`,
                     
-                    // 11. Image resource type (for images)
+                    // 9. Image resource type (for images)
                     `https://res.cloudinary.com/${cloudName}/image/upload/${version}/${pathAfterVersion}`,
                     
-                    // 12. Using filename only (no version)
+                    // 10. Using filename only (no version)
                     `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/${publicId.split('/').pop()}.${format}`,
                     
-                    // 13. Using different version format
+                    // 11. Using different version format
                     `https://res.cloudinary.com/${cloudName}/${correctResourceType}/upload/v${version.substring(1)}/${pathAfterVersion}`,
                     
-                    // 14. Fallback to image/upload for compatibility
+                    // 12. Fallback to image/upload for compatibility
                     `https://res.cloudinary.com/${cloudName}/image/upload/${version}/${pathAfterVersion}`,
                     
-                    // 15. Using delivery URL format
+                    // 13. Using delivery URL format
                     `https://res.cloudinary.com/${cloudName}/${correctResourceType}/delivery/${pathAfterVersion}`,
                     
-                    // 16. Using fetch URL format
-                    `https://res.cloudinary.com/${cloudName}/fetch/${pathAfterVersion}`
+                    // 14. Using fetch URL format
+                    `https://res.cloudinary.com/${cloudName}/fetch/${pathAfterVersion}`,
+                    
+                    // 15. Using raw for all documents as fallback
+                    `https://res.cloudinary.com/${cloudName}/raw/upload/${version}/${pathAfterVersion}`,
+                    
+                    // 16. Using video for all media as fallback
+                    `https://res.cloudinary.com/${cloudName}/video/upload/${version}/${pathAfterVersion}`
                 ];
                 
                 console.log('Generated ALL URL candidates for testing:', {
@@ -586,45 +577,78 @@ app.post('/upload/:roomId?', upload.single('file'), async (req, res) => {
                 console.log(`AI optimization complete for ${format} file`);
             }
             
-            console.log('Final AI-powered URL info:', {
-                format: format,
-                resourceType: resourceType,
-                originalUrl: workingUrl,
-                finalUrl: secureUrl,
-                aiOptimized: true
-            });
-            console.log(`Using resource type: ${resourceType} for format: ${format}`);
-            
-            cloudinaryData = {
+            // Add Cloudinary data to metadata
+            metadata.cloudinaryData = {
                 public_id: publicId,
                 secure_url: secureUrl,
                 format: format,
                 bytes: bytes,
                 created_at: new Date().toISOString()
             };
-            console.log('Processed cloudinary data:', cloudinaryData);
+            
+            console.log('AI-enhanced metadata:', metadata);
+            console.log(`Using resource type: ${correctResourceType} for format: ${format}`);
         }
         
-        // Save metadata
-        saveFileMetadata(roomId, filename, uploaderId, cloudinaryData);
+        // Store file metadata
+        const roomPath = path.join(storageDir, roomId);
+        if (!fs.existsSync(roomPath)) {
+            fs.mkdirSync(roomPath, { recursive: true });
+        }
         
-        console.log(`File uploaded: ${filename} to room ${roomId} by ${uploaderId}`);
+        const metadataPath = path.join(roomPath, `${filename}.json`);
+        fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+        
+        console.log(`✅ AI-powered upload complete: ${filename} in room ${roomId}`);
+        console.log('=== AI-Powered Upload Complete ===');
         
         res.json({
             success: true,
-            file: {
-                name: filename,
-                size: req.file.size || cloudinaryData?.bytes || 0,
-                uploadedAt: new Date().toISOString(),
-                uploaderId: uploaderId,
-                cloudinaryData: cloudinaryData
-            },
-            message: 'File uploaded successfully'
+            roomId: roomId,
+            file: metadata,
+            message: 'File uploaded successfully with AI optimization'
         });
-
+        
     } catch (error) {
-        console.error('Upload error:', error);
-        res.status(500).json({ error: 'Failed to upload file' });
+        console.error('💥 AI upload error:', error);
+        
+        // Handle Cloudinary format errors specifically
+        if (error.message && error.message.includes('not allowed')) {
+            console.log('🔧 AI fixing format error...');
+            
+            // Try to extract format from file and retry with correct resource type
+            if (req.file && req.file.originalname) {
+                const extension = req.file.originalname.split('.').pop().toLowerCase();
+                let correctResourceType = 'raw'; // Default to raw for safety
+                
+                if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico'].includes(extension)) {
+                    correctResourceType = 'image';
+                } else if (['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', '3gp'].includes(extension)) {
+                    correctResourceType = 'video';
+                } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a'].includes(extension)) {
+                    correctResourceType = 'video'; // Cloudinary uses video for audio
+                }
+                
+                console.log(`🤖 AI determined correct resource type: ${correctResourceType} for ${extension}`);
+                
+                // Return error with AI suggestion
+                return res.status(400).json({
+                    error: `File format ${extension} not allowed with current resource type. AI suggests using resource_type: ${correctResourceType}`,
+                    suggestion: `Try uploading with resource_type: ${correctResourceType}`,
+                    aiAnalysis: {
+                        extension: extension,
+                        suggestedResourceType: correctResourceType,
+                        originalError: error.message
+                    }
+                });
+            }
+        }
+        
+        res.status(500).json({ 
+            error: 'Upload failed', 
+            message: error.message,
+            aiSuggestion: 'Check file format and resource type compatibility'
+        });
     }
 });
 
