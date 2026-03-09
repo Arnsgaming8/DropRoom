@@ -409,6 +409,7 @@ class DropRoom {
 
     async loadFiles() {
         try {
+            console.log('=== LOADING FILES DEBUG ===');
             console.log('Loading files...');
             console.log(`Room ID: ${this.roomId}`);
             console.log(`API URL: ${this.apiBaseUrl}`);
@@ -428,6 +429,7 @@ class DropRoom {
             console.log('Files loaded:', files);
             console.log('Number of files:', files.length);
             console.log('Files array type:', Array.isArray(files));
+            console.log('Files details:', files);
             
             this.displayFiles(files);
             
@@ -455,16 +457,23 @@ class DropRoom {
     }
 
     displayFiles(files) {
+        console.log('=== DISPLAY FILES DEBUG ===');
         const filesList = document.getElementById('files-list');
         
         console.log('displayFiles called with:', files);
         console.log('filesList element:', filesList);
+        console.log('Looking for element with ID: files-list');
         
         if (!filesList) {
             console.error('files-list element not found!');
             return;
         }
 
+        console.log('Files to display:', files.length);
+        files.forEach((file, index) => {
+            console.log(`Processing file ${index}:`, file);
+        });
+        
         if (files.length === 0) {
             console.log('No files to display, showing empty state');
             filesList.innerHTML = `
@@ -475,8 +484,10 @@ class DropRoom {
             return;
         }
 
-        console.log('Displaying', files.length, 'files');
+        console.log('Building HTML for', files.length, 'files');
         filesList.innerHTML = files.map(file => {
+            console.log('Creating HTML for file:', file.name);
+            
             const isOwner = file.uploaderId === this.uploaderId;
             const deleteButton = isOwner ? `
                 <button class="btn-delete" onclick="dropRoom.confirmDelete('${file.name}', '${file.uploaderId}')">
@@ -484,7 +495,6 @@ class DropRoom {
                 </button>
             ` : '';
             
-            console.log('Displaying file:', file.name);
             console.log('File uploader ID:', file.uploaderId);
             console.log('Current user ID:', this.uploaderId);
             console.log('Is owner:', isOwner);
@@ -508,6 +518,9 @@ class DropRoom {
                 </div>
             `;
         }).join('');
+        
+        console.log('Final HTML length:', filesList.innerHTML.length);
+        console.log('=== DISPLAY FILES DEBUG END ===');
         
         console.log('Files displayed successfully');
     }
