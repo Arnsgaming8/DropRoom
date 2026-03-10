@@ -578,20 +578,29 @@ class DropRoom {
         try {
             // Get the file list to find the Cloudinary URL
             const response = await fetch(`${this.apiBaseUrl}/list/${this.roomId}`);
-            // Fallback to backend URL
-            const encodedFilename = encodeURIComponent(filename);
-            const fileUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
-            console.log('Opening backend URL:', fileUrl);
-            window.open(fileUrl, '_blank');
-        } else {
-            console.error('File not found:', filename);
-            this.showToast('File not found', 'error');
+            const files = await response.json();
+            
+            const file = files.find(f => f.name === filename);
+            
+            if (file && file.cloudinaryData && file.cloudinaryData.secure_url) {
+                // Open Cloudinary URL directly
+                console.log('Opening Cloudinary URL:', file.cloudinaryData.secure_url);
+                window.open(file.cloudinaryData.secure_url, '_blank');
+            } else if (file) {
+                // Fallback to backend URL
+                const encodedFilename = encodeURIComponent(filename);
+                const fileUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
+                console.log('Opening backend URL:', fileUrl);
+                window.open(fileUrl, '_blank');
+            } else {
+                console.error('File not found:', filename);
+                this.showToast('File not found', 'error');
+            }
+        } catch (error) {
+            console.error('Error opening file:', error);
+            this.showToast('Failed to open file', 'error');
         }
-    } catch (error) {
-        console.error('Error opening file:', error);
-        this.showToast('Failed to open file', 'error');
     }
-}
 
 async downloadFile(filename) {
     try {
