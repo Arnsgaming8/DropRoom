@@ -597,15 +597,15 @@ class DropRoom {
             const file = files.find(f => f.name === filename);
             
             if (file && file.cloudinaryData && file.cloudinaryData.secure_url) {
-                // Open Cloudinary URL directly
-                console.log('Opening Cloudinary URL:', file.cloudinaryData.secure_url);
-                window.open(file.cloudinaryData.secure_url, '_blank');
+                // AI-powered file opening strategy
+                const openUrl = this.getAIOptimizedOpenUrl(file);
+                console.log('AI opening file with URL:', openUrl);
+                window.open(openUrl, '_blank');
             } else if (file) {
-                // Fallback to backend URL
-                const encodedFilename = encodeURIComponent(filename);
-                const fileUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
-                console.log('Opening backend URL:', fileUrl);
-                window.open(fileUrl, '_blank');
+                // Fallback to backend URL with AI optimization
+                const openUrl = this.getAIOptimizedBackendUrl(file);
+                console.log('AI opening backend URL:', openUrl);
+                window.open(openUrl, '_blank');
             } else {
                 console.error('File not found:', filename);
                 this.showToast('File not found', 'error');
@@ -613,6 +613,72 @@ class DropRoom {
         } catch (error) {
             console.error('Error opening file:', error);
             this.showToast('Failed to open file', 'error');
+        }
+    }
+
+    getAIOptimizedOpenUrl(file) {
+        const filename = file.name.toLowerCase();
+        const extension = filename.split('.').pop();
+        const baseUrl = file.cloudinaryData.secure_url;
+        
+        console.log('AI analyzing file for optimal opening:', { filename, extension });
+        
+        // AI-powered URL optimization for different file types
+        if (['pdf'].includes(extension)) {
+            // PDF: Use viewer parameter for inline display
+            return baseUrl + '#view=FitV';
+        } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'heic', 'heif'].includes(extension)) {
+            // Images: Add quality and format optimization
+            return baseUrl.replace('/upload/', '/upload/q_auto,f_auto/');
+        } else if (['mp4', 'webm', 'ogg'].includes(extension)) {
+            // Videos: Add streaming optimization
+            return baseUrl.replace('/upload/', '/upload/q_auto,vc_auto/');
+        } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a'].includes(extension)) {
+            // Audio: Add audio optimization
+            return baseUrl.replace('/upload/', '/upload/q_auto,ac_auto/');
+        } else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf'].includes(extension)) {
+            // Documents: Use Google Docs viewer as fallback
+            const encodedUrl = encodeURIComponent(baseUrl);
+            return `https://docs.google.com/viewer?url=${encodedUrl}&embedded=true`;
+        } else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension)) {
+            // Archives: Try to open directly (will download if not supported)
+            return baseUrl;
+        } else {
+            // Unknown files: Try direct opening first
+            console.log('AI: Unknown file type, trying direct open:', extension);
+            return baseUrl;
+        }
+    }
+
+    getAIOptimizedBackendUrl(file) {
+        const filename = file.name.toLowerCase();
+        const extension = filename.split('.').pop();
+        const encodedFilename = encodeURIComponent(filename);
+        const baseUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
+        
+        console.log('AI analyzing backend file for optimal opening:', { filename, extension });
+        
+        // AI-powered backend URL optimization
+        if (['pdf'].includes(extension)) {
+            // PDF: Add viewer parameter
+            return baseUrl + '#view=FitV';
+        } else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf'].includes(extension)) {
+            // Documents: Use Google Docs viewer
+            const encodedUrl = encodeURIComponent(baseUrl);
+            return `https://docs.google.com/viewer?url=${encodedUrl}&embedded=true`;
+        } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'heic', 'heif'].includes(extension)) {
+            // Images: Direct opening should work in browser
+            return baseUrl;
+        } else if (['mp4', 'webm', 'ogg'].includes(extension)) {
+            // Videos: Direct opening should work in browser
+            return baseUrl;
+        } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a'].includes(extension)) {
+            // Audio: Direct opening should work in browser
+            return baseUrl;
+        } else {
+            // Unknown files: Try direct opening
+            console.log('AI: Unknown backend file type, trying direct open:', extension);
+            return baseUrl;
         }
     }
 
