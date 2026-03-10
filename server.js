@@ -773,8 +773,37 @@ app.get('/file/:roomId/:filename', (req, res) => {
         if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
             // Check if we have a Cloudinary URL
             if (metadata.cloudinaryData.secure_url) {
-                console.log(`Redirecting to Cloudinary URL: ${metadata.cloudinaryData.secure_url}`);
-                res.redirect(302, metadata.cloudinaryData.secure_url);
+                console.log(`Serving file from Cloudinary (no redirect): ${metadata.cloudinaryData.secure_url}`);
+                
+                // Fetch the file from Cloudinary and serve it directly
+                const https = require('https');
+                const http = require('http');
+                const url = require('url');
+                
+                const cloudinaryUrl = metadata.cloudinaryData.secure_url;
+                const parsedUrl = url.parse(cloudinaryUrl);
+                const client = parsedUrl.protocol === 'https:' ? https : http;
+                
+                client.get(cloudinaryUrl, (cloudinaryRes) => {
+                    console.log(`Cloudinary response status: ${cloudinaryRes.statusCode}`);
+                    
+                    if (cloudinaryRes.statusCode === 200) {
+                        // Set headers for file download
+                        res.setHeader('Content-Type', cloudinaryRes.headers['content-type'] || 'application/octet-stream');
+                        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+                        res.setHeader('Content-Length', cloudinaryRes.headers['content-length'] || '0');
+                        
+                        // Pipe the file directly to the response
+                        cloudinaryRes.pipe(res);
+                    } else {
+                        console.error(`Cloudinary returned error: ${cloudinaryRes.statusCode}`);
+                        res.status(cloudinaryRes.statusCode).json({ error: 'Failed to fetch file from Cloudinary' });
+                    }
+                }).on('error', (error) => {
+                    console.error('Error fetching from Cloudinary:', error);
+                    res.status(500).json({ error: 'Failed to fetch file from Cloudinary' });
+                });
+                
                 return;
             } else {
                 console.error('Missing Cloudinary URL for file:', filename);
