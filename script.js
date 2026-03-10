@@ -864,6 +864,7 @@ async downloadFile(filename) {
 let dropRoom;
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DropRoom v2.0 - PDF Fix Applied');
     dropRoom = new DropRoom();
     window.dropRoom = dropRoom;
 });
