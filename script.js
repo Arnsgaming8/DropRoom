@@ -514,6 +514,7 @@ class DropRoom {
         // Refresh files every 5 seconds (reduced from 1 second to avoid spam)
         this.refreshInterval = setInterval(() => {
             console.log('Auto-refreshing files...');
+            // Use current room ID instead of re-extracting to prevent ID changes
             this.loadFiles();
         }, 5000);
     }
