@@ -303,15 +303,23 @@ function getMetadataPath(roomId) {
 }
 
 function saveFileMetadata(roomId, filename, uploaderId, cloudinaryData = null) {
+    console.log('=== SAVE METADATA DEBUG ===');
+    console.log('Saving metadata for:', { roomId, filename, uploaderId });
+    
     const metadataPath = getMetadataPath(roomId);
+    console.log('Metadata path:', metadataPath);
+    
     let metadata = {};
     
     if (fs.existsSync(metadataPath)) {
         try {
             metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+            console.log('Existing metadata loaded:', Object.keys(metadata));
         } catch (error) {
             console.error('Error reading metadata:', error);
         }
+    } else {
+        console.log('No existing metadata file, creating new one');
     }
     
     metadata[filename] = {
@@ -321,7 +329,17 @@ function saveFileMetadata(roomId, filename, uploaderId, cloudinaryData = null) {
         cloudinaryData: cloudinaryData // Store Cloudinary data if using Cloudinary
     };
     
-    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+    console.log('Metadata to save:', metadata);
+    
+    try {
+        fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+        console.log('✅ Metadata saved successfully');
+        console.log('File exists after save:', fs.existsSync(metadataPath));
+    } catch (error) {
+        console.error('❌ Error saving metadata:', error);
+    }
+    
+    console.log('=== SAVE METADATA DEBUG END ===');
 }
 
 function getFileMetadata(roomId, filename) {
