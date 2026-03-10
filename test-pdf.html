@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF Test - DropRoom</title>
+</head>
+<body>
+    <h1>PDF Test Page</h1>
+    <p>This page tests PDF opening without any cache issues.</p>
+    
+    <button onclick="testPDF()">Test PDF Opening</button>
+    
+    <script>
+        function testPDF() {
+            console.log('Testing PDF opening...');
+            
+            // Test room ID from your console
+            const roomId = 'AvmQUbbdbGan';
+            const filename = '1773117218092-Click_the_Open_Button_pdf';
+            
+            // Test backend URL directly
+            const backendUrl = `https://droproom-yxsb.onrender.com/file/${roomId}/${filename}`;
+            console.log('Opening backend URL:', backendUrl);
+            
+            window.open(backendUrl, '_blank');
+        }
+    </script>
+</body>
+</html>
