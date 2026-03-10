@@ -603,28 +603,32 @@ class DropRoom {
     }
 
 async downloadFile(filename) {
-    try {
-        // Get the file list to find the Cloudinary URL
-        const response = await fetch(`${this.apiBaseUrl}/list/${this.roomId}`);
-        const files = await response.json();
-        
-        const file = files.find(f => f.name === filename);
-        
-
-const file = files.find(f => f.name === filename);
-        const date = new Date(uploadTime);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-        
-        if (diffMins < 1) return 'just now';
-        if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-        
-        const diffHours = Math.floor(diffMins / 60);
-        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-        
-        const diffDays = Math.floor(diffHours / 24);
-        return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        try {
+            // Get the file list to find the Cloudinary URL
+            const response = await fetch(`${this.apiBaseUrl}/list/${this.roomId}`);
+            const files = await response.json();
+            
+            const file = files.find(f => f.name === filename);
+            
+            if (file && file.cloudinaryData && file.cloudinaryData.secure_url) {
+                // Create download URL with attachment parameter
+                const downloadUrl = file.cloudinaryData.secure_url.replace('/upload/', '/upload/fl_attachment/');
+                console.log('Opening Cloudinary download URL:', downloadUrl);
+                window.open(downloadUrl, '_blank');
+            } else if (file) {
+                // Fallback to backend URL
+                const encodedFilename = encodeURIComponent(filename);
+                const fileUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
+                console.log('Opening backend download URL:', fileUrl);
+                window.open(fileUrl, '_blank');
+            } else {
+                console.error('File not found:', filename);
+                this.showToast('File not found', 'error');
+            }
+        } catch (error) {
+            console.error('Error downloading file:', error);
+            this.showToast('Failed to download file', 'error');
+        }
     }
 
     confirmDelete(filename, uploaderId) {
