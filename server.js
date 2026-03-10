@@ -475,7 +475,9 @@ app.post('/upload/:roomId?', upload.single('file'), async (req, res) => {
             size: req.file.size,
             uploadedAt: new Date().toISOString(),
             uploaderId: req.body.uploaderId || 'anonymous'
-        };
+        }
+        
+        let cloudinaryData = null;
         
         // Handle Cloudinary storage
         if (STORAGE_TYPE === 'cloudinary') {
@@ -596,7 +598,7 @@ app.post('/upload/:roomId?', upload.single('file'), async (req, res) => {
             }
             
             // Add Cloudinary data to metadata
-            metadata.cloudinaryData = {
+            cloudinaryData = {
                 public_id: publicId,
                 secure_url: secureUrl,
                 format: format,
