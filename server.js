@@ -463,6 +463,7 @@ app.post('/upload/:roomId?', upload.single('file'), async (req, res) => {
         const timestamp = Date.now();
         const sanitizedName = originalName.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
         const filename = `${timestamp}-${sanitizedName}`;
+        const uploaderId = req.body.uploaderId || 'anonymous';
         
         console.log('AI processing file:', { originalName, filename, roomId });
         
