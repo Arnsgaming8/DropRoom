@@ -221,13 +221,16 @@ if (STORAGE_TYPE === 'cloudinary') {
                 if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'heic', 'heif'].includes(extension)) {
                     console.log('AI: Using image resource type');
                     return 'image';
+                } else if (['pdf'].includes(extension)) {
+                    console.log('AI: Using image resource type for PDF (browser compatible)');
+                    return 'image'; // PDFs need image resource type for browser viewing
                 } else if (['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', '3gp', 'flv', 'm4v'].includes(extension)) {
                     console.log('AI: Using video resource type');
                     return 'video';
                 } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma', 'opus', 'aiff', 'amr'].includes(extension)) {
                     console.log('AI: Using video resource type for audio');
                     return 'video'; // Cloudinary uses 'video' for audio too
-                } else if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt', 'ods', 'odp', 'odg'].includes(extension)) {
+                } else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt', 'ods', 'odp', 'odg'].includes(extension)) {
                     console.log('AI: Using raw resource type for documents');
                     return 'raw';
                 } else if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'].includes(extension)) {
