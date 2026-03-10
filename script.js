@@ -462,19 +462,32 @@ class DropRoom {
             console.log('Loading files...');
             console.log(`Room ID: ${this.roomId}`);
             console.log(`API URL: ${this.apiBaseUrl}`);
-            console.log(`Full URL: ${this.apiBaseUrl}/list/${this.roomId}`);
+            const fullUrl = `${this.apiBaseUrl}/list/${this.roomId}`;
+            console.log('Full URL:', fullUrl);
             
-            const response = await fetch(`${this.apiBaseUrl}/list/${this.roomId}`);
-            
-            console.log('Response status:', response.status);
-            console.log('Response headers:', response.headers);
+            const response = await fetch(fullUrl);
+            console.log('Fetch response status:', response.status);
+            console.log('Fetch response headers:', response.headers);
             
             if (!response.ok) {
                 console.error('Response not OK:', response.status, response.statusText);
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
-            const files = await response.json();
+            const responseText = await response.text();
+            console.log('Raw response text:', responseText);
+            console.log('Response text length:', responseText.length);
+            
+            let files;
+            try {
+                files = JSON.parse(responseText);
+                console.log('Successfully parsed JSON:', files);
+            } catch (parseError) {
+                console.error('JSON parse error:', parseError);
+                console.error('Response text that failed to parse:', responseText);
+                files = [];
+            }
+            
             console.log('Files loaded:', files);
             console.log('Number of files:', files.length);
             console.log('Files array type:', Array.isArray(files));
