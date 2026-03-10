@@ -596,26 +596,22 @@ class DropRoom {
             
             const file = files.find(f => f.name === filename);
             
-            if (file && file.cloudinaryData && file.cloudinaryData.secure_url) {
-                // AI-powered file opening strategy
-                const openUrl = this.getAIOptimizedOpenUrl(file);
-                console.log('AI opening file with URL:', openUrl);
-                
-                // Special handling for PDFs - try multiple strategies
+            if (file) {
+                // For PDFs, always use backend URL to bypass Cloudinary 401 errors
                 if (file.name.toLowerCase().endsWith('.pdf')) {
-                    this.openPdfWithFallbacks(file, openUrl);
-                } else {
+                    const encodedFilename = encodeURIComponent(file.name);
+                    const backendUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
+                    console.log('PDF: FORCED backend URL (bypasses Cloudinary):', backendUrl);
+                    window.open(backendUrl, '_blank');
+                } else if (file.cloudinaryData && file.cloudinaryData.secure_url) {
+                    // For other files, use AI-powered opening strategy
+                    const openUrl = this.getAIOptimizedOpenUrl(file);
+                    console.log('AI opening file with URL:', openUrl);
                     window.open(openUrl, '_blank');
-                }
-            } else if (file) {
-                // Fallback to backend URL with AI optimization
-                const openUrl = this.getAIOptimizedBackendUrl(file);
-                console.log('AI opening backend URL:', openUrl);
-                
-                // Special handling for PDFs - try multiple strategies
-                if (file.name.toLowerCase().endsWith('.pdf')) {
-                    this.openPdfWithFallbacks(file, openUrl);
                 } else {
+                    // Fallback to backend URL with AI optimization
+                    const openUrl = this.getAIOptimizedBackendUrl(file);
+                    console.log('AI opening backend URL:', openUrl);
                     window.open(openUrl, '_blank');
                 }
             } else {
@@ -661,11 +657,11 @@ class DropRoom {
         
         // AI-powered URL optimization for different file types
         if (['pdf'].includes(extension)) {
-            // PDF: Multiple strategies for browser compatibility
-            // Strategy 1: Try direct Cloudinary URL with viewer
-            const directUrl = baseUrl + '#view=FitV';
-            console.log('AI: PDF Strategy 1 - Direct URL:', directUrl);
-            return directUrl;
+            // PDF: ALWAYS use backend URL to bypass Cloudinary 401 errors
+            const encodedFilename = encodeURIComponent(file.name);
+            const backendUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
+            console.log('AI: PDF - FORCED backend URL (bypasses Cloudinary):', backendUrl);
+            return backendUrl;
         } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'heic', 'heif'].includes(extension)) {
             // Images: Add quality and format optimization
             return baseUrl.replace('/upload/', '/upload/q_auto,f_auto/');
