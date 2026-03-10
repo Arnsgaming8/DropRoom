@@ -573,56 +573,31 @@ class DropRoom {
         try {
             // Get the file list to find the Cloudinary URL
             const response = await fetch(`${this.apiBaseUrl}/list/${this.roomId}`);
-            const files = await response.json();
-            
-            const file = files.find(f => f.name === filename);
-            
-            if (file && file.cloudinaryData && file.cloudinaryData.secure_url) {
-                // Open the Cloudinary URL directly
-                window.open(file.cloudinaryData.secure_url, '_blank');
-            } else {
-                // Fallback to backend URL
-                const encodedFilename = encodeURIComponent(filename);
-                const fileUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
-                window.open(fileUrl, '_blank');
-            }
-        } catch (error) {
-            console.error('Error opening file:', error);
             // Fallback to backend URL
             const encodedFilename = encodeURIComponent(filename);
             const fileUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
+            console.log('Opening backend URL:', fileUrl);
             window.open(fileUrl, '_blank');
+        } else {
+            console.error('File not found:', filename);
+            this.showToast('File not found', 'error');
         }
+    } catch (error) {
+        console.error('Error opening file:', error);
+        this.showToast('Failed to open file', 'error');
     }
+}
 
-    async downloadFile(filename) {
-        try {
-            // Get the file list to find the Cloudinary URL
-            const response = await fetch(`${this.apiBaseUrl}/list/${this.roomId}`);
-            const files = await response.json();
-            
-            const file = files.find(f => f.name === filename);
-            
-            if (file && file.cloudinaryData && file.cloudinaryData.secure_url) {
-                // Create download URL with attachment parameter
-                const downloadUrl = file.cloudinaryData.secure_url.replace('/upload/', '/upload/fl_attachment/');
-                window.open(downloadUrl, '_blank');
-            } else {
-                // Fallback to backend URL
-                const encodedFilename = encodeURIComponent(filename);
-                const downloadUrl = `${this.apiBaseUrl}/download/${this.roomId}/${encodedFilename}`;
-                window.open(downloadUrl, '_blank');
-            }
-        } catch (error) {
-            console.error('Error downloading file:', error);
-            // Fallback to backend URL
-            const encodedFilename = encodeURIComponent(filename);
-            const downloadUrl = `${this.apiBaseUrl}/download/${this.roomId}/${encodedFilename}`;
-            window.open(downloadUrl, '_blank');
-        }
-    }
+async downloadFile(filename) {
+    try {
+        // Get the file list to find the Cloudinary URL
+        const response = await fetch(`${this.apiBaseUrl}/list/${this.roomId}`);
+        const files = await response.json();
+        
+        const file = files.find(f => f.name === filename);
+        
 
-    formatUploadTime(uploadTime) {
+const file = files.find(f => f.name === filename);
         const date = new Date(uploadTime);
         const now = new Date();
         const diffMs = now - date;

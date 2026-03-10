@@ -218,18 +218,24 @@ if (STORAGE_TYPE === 'cloudinary') {
                 console.log('AI determining resource type for:', { mimetype, extension });
                 
                 // Smart AI-based resource type detection
-                if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff'].includes(extension)) {
+                if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'heic', 'heif'].includes(extension)) {
                     console.log('AI: Using image resource type');
                     return 'image';
-                } else if (['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', '3gp'].includes(extension)) {
+                } else if (['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', '3gp', 'flv', 'm4v'].includes(extension)) {
                     console.log('AI: Using video resource type');
                     return 'video';
-                } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma'].includes(extension)) {
+                } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma', 'opus', 'aiff', 'amr'].includes(extension)) {
                     console.log('AI: Using video resource type for audio');
-                    return 'video'; // Cloudinary uses 'video' for audio
-                } else {
+                    return 'video'; // Cloudinary uses 'video' for audio too
+                } else if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt', 'ods', 'odp', 'odg'].includes(extension)) {
                     console.log('AI: Using raw resource type for documents');
-                    return 'raw'; // All documents, PDFs, archives, code files, etc.
+                    return 'raw';
+                } else if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'].includes(extension)) {
+                    console.log('AI: Using raw resource type for archives');
+                    return 'raw';
+                } else {
+                    console.log('AI: Using raw resource type for unknown format:', extension);
+                    return 'raw'; // Default to raw for safety
                 }
             }
             // Completely remove allowed_formats to accept ALL file types
