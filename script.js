@@ -631,34 +631,25 @@ class DropRoom {
     openPdfWithFallbacks(file, primaryUrl) {
         console.log('AI: Opening PDF with fallback strategies');
         
-        // Strategy 1: Try direct Cloudinary URL first
-        console.log('AI: PDF Strategy 1 - Direct Cloudinary URL:', primaryUrl);
-        const newWindow = window.open(primaryUrl, '_blank');
+        // Skip Cloudinary entirely due to 401 errors - go straight to backend
+        console.log('AI: Skipping Cloudinary due to 401 errors, using backend URL');
+        const encodedFilename = encodeURIComponent(file.name);
+        const backendUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
+        console.log('AI: PDF Strategy - Backend URL:', backendUrl);
+        const backendWindow = window.open(backendUrl, '_blank');
         
-        // Check if the window opened successfully and wait a bit
+        // If backend also fails, try Google Docs viewer
         setTimeout(() => {
-            if (newWindow && newWindow.closed) {
-                console.log('AI: Direct Cloudinary PDF opening failed, trying backend URL');
-                // Strategy 2: Use backend URL (bypasses Cloudinary restrictions)
-                const encodedFilename = encodeURIComponent(file.name);
-                const backendUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
-                console.log('AI: PDF Strategy 2 - Backend URL:', backendUrl);
-                const backendWindow = window.open(backendUrl, '_blank');
-                
-                // Strategy 3: If backend also fails, try Google Docs viewer
-                setTimeout(() => {
-                    if (backendWindow && backendWindow.closed) {
-                        console.log('AI: Backend PDF opening failed, trying Google Docs viewer');
-                        const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(backendUrl)}&embedded=true`;
-                        console.log('AI: PDF Strategy 3 - Google Docs viewer:', googleViewerUrl);
-                        window.open(googleViewerUrl, '_blank');
-                    }
-                }, 2000);
+            if (backendWindow && backendWindow.closed) {
+                console.log('AI: Backend PDF opening failed, trying Google Docs viewer');
+                const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(backendUrl)}&embedded=true`;
+                console.log('AI: PDF Fallback - Google Docs viewer:', googleViewerUrl);
+                window.open(googleViewerUrl, '_blank');
             }
         }, 2000);
         
         // Also show user feedback
-        this.showToast('Opening PDF... If it shows error, try the Download button instead', 'info');
+        this.showToast('Opening PDF via backend... If it shows error, try the Download button instead', 'info');
     }
 
     getAIOptimizedOpenUrl(file) {
