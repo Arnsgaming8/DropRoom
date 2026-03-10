@@ -600,12 +600,24 @@ class DropRoom {
                 // AI-powered file opening strategy
                 const openUrl = this.getAIOptimizedOpenUrl(file);
                 console.log('AI opening file with URL:', openUrl);
-                window.open(openUrl, '_blank');
+                
+                // Special handling for PDFs - try multiple strategies
+                if (file.name.toLowerCase().endsWith('.pdf')) {
+                    this.openPdfWithFallbacks(file, openUrl);
+                } else {
+                    window.open(openUrl, '_blank');
+                }
             } else if (file) {
                 // Fallback to backend URL with AI optimization
                 const openUrl = this.getAIOptimizedBackendUrl(file);
                 console.log('AI opening backend URL:', openUrl);
-                window.open(openUrl, '_blank');
+                
+                // Special handling for PDFs - try multiple strategies
+                if (file.name.toLowerCase().endsWith('.pdf')) {
+                    this.openPdfWithFallbacks(file, openUrl);
+                } else {
+                    window.open(openUrl, '_blank');
+                }
             } else {
                 console.error('File not found:', filename);
                 this.showToast('File not found', 'error');
@@ -614,6 +626,29 @@ class DropRoom {
             console.error('Error opening file:', error);
             this.showToast('Failed to open file', 'error');
         }
+    }
+
+    openPdfWithFallbacks(file, primaryUrl) {
+        console.log('AI: Opening PDF with fallback strategies');
+        
+        // Strategy 1: Try direct URL first
+        console.log('AI: PDF Strategy 1 - Direct URL:', primaryUrl);
+        const newWindow = window.open(primaryUrl, '_blank');
+        
+        // Check if the window opened successfully and wait a bit
+        setTimeout(() => {
+            if (newWindow && newWindow.closed) {
+                console.log('AI: Direct PDF opening failed, trying Google Docs viewer');
+                // Strategy 2: Use Google Docs viewer
+                const encodedUrl = encodeURIComponent(file.cloudinaryData.secure_url);
+                const googleViewerUrl = `https://docs.google.com/viewer?url=${encodedUrl}&embedded=true`;
+                console.log('AI: PDF Strategy 2 - Google Docs viewer:', googleViewerUrl);
+                window.open(googleViewerUrl, '_blank');
+            }
+        }, 2000);
+        
+        // Also show user feedback
+        this.showToast('Opening PDF... If it downloads, try the Download button instead', 'info');
     }
 
     getAIOptimizedOpenUrl(file) {
@@ -625,8 +660,11 @@ class DropRoom {
         
         // AI-powered URL optimization for different file types
         if (['pdf'].includes(extension)) {
-            // PDF: Use viewer parameter for inline display
-            return baseUrl + '#view=FitV';
+            // PDF: Multiple strategies for browser compatibility
+            // Strategy 1: Try direct Cloudinary URL with viewer
+            const directUrl = baseUrl + '#view=FitV';
+            console.log('AI: PDF Strategy 1 - Direct URL:', directUrl);
+            return directUrl;
         } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'heic', 'heif'].includes(extension)) {
             // Images: Add quality and format optimization
             return baseUrl.replace('/upload/', '/upload/q_auto,f_auto/');
