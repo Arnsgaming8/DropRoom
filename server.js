@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const cors = require('cors');
 const mime = require('mime-types');
+const fetch = require('node-fetch'); // Required for Discord webhook
 
 // Discord webhook monitoring
 const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1480358508674285689/1NjZfNFd7nF7aguLVJE6ihPe9WwJBguagV8-uvHiwSV56Izp0e9dPGfPkBMhTogv0iB4';
