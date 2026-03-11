@@ -590,30 +590,18 @@ class DropRoom {
 
     async openFile(filename) {
         try {
-            // Get the file list to find the Cloudinary URL
+            // Get the file list to find the file metadata
             const response = await fetch(`${this.apiBaseUrl}/list/${this.roomId}`);
             const files = await response.json();
             
             const file = files.find(f => f.name === filename);
             
             if (file) {
-                // For PDFs, always use backend URL to bypass Cloudinary 401 errors
-                if (file.name.toLowerCase().endsWith('.pdf')) {
-                    const encodedFilename = encodeURIComponent(file.name);
-                    const backendUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
-                    console.log('PDF: FORCED backend URL (bypasses Cloudinary):', backendUrl);
-                    window.open(backendUrl, '_blank');
-                } else if (file.cloudinaryData && file.cloudinaryData.secure_url) {
-                    // For other files, use AI-powered opening strategy
-                    const openUrl = this.getAIOptimizedOpenUrl(file);
-                    console.log('AI opening file with URL:', openUrl);
-                    window.open(openUrl, '_blank');
-                } else {
-                    // Fallback to backend URL with AI optimization
-                    const openUrl = this.getAIOptimizedBackendUrl(file);
-                    console.log('AI opening backend URL:', openUrl);
-                    window.open(openUrl, '_blank');
-                }
+                // ALL files now use backend URL for consistent behavior
+                const encodedFilename = encodeURIComponent(file.name);
+                const backendUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
+                console.log('Opening file via backend URL:', backendUrl);
+                window.open(backendUrl, '_blank');
             } else {
                 console.error('File not found:', filename);
                 this.showToast('File not found', 'error');
@@ -651,38 +639,14 @@ class DropRoom {
     getAIOptimizedOpenUrl(file) {
         const filename = file.name.toLowerCase();
         const extension = filename.split('.').pop();
-        const baseUrl = file.cloudinaryData.secure_url;
         
         console.log('AI analyzing file for optimal opening:', { filename, extension });
         
-        // AI-powered URL optimization for different file types
-        if (['pdf'].includes(extension)) {
-            // PDF: ALWAYS use backend URL to bypass Cloudinary 401 errors
-            const encodedFilename = encodeURIComponent(file.name);
-            const backendUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
-            console.log('AI: PDF - FORCED backend URL (bypasses Cloudinary):', backendUrl);
-            return backendUrl;
-        } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'heic', 'heif'].includes(extension)) {
-            // Images: Add quality and format optimization
-            return baseUrl.replace('/upload/', '/upload/q_auto,f_auto/');
-        } else if (['mp4', 'webm', 'ogg'].includes(extension)) {
-            // Videos: Add streaming optimization
-            return baseUrl.replace('/upload/', '/upload/q_auto,vc_auto/');
-        } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a'].includes(extension)) {
-            // Audio: Add audio optimization
-            return baseUrl.replace('/upload/', '/upload/q_auto,ac_auto/');
-        } else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf'].includes(extension)) {
-            // Documents: Use Google Docs viewer as fallback
-            const encodedUrl = encodeURIComponent(baseUrl);
-            return `https://docs.google.com/viewer?url=${encodedUrl}&embedded=true`;
-        } else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension)) {
-            // Archives: Try to open directly (will download if not supported)
-            return baseUrl;
-        } else {
-            // Unknown files: Try direct opening first
-            console.log('AI: Unknown file type, trying direct open:', extension);
-            return baseUrl;
-        }
+        // ALWAYS use backend URL for ALL file types to ensure consistent behavior
+        const encodedFilename = encodeURIComponent(file.name);
+        const backendUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
+        console.log('AI: FORCED backend URL for all files:', backendUrl);
+        return backendUrl;
     }
 
     getAIOptimizedBackendUrl(file) {
