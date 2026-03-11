@@ -240,7 +240,10 @@ if (STORAGE_TYPE === 'cloudinary') {
                     console.log('AI: Using raw resource type for unknown format:', extension);
                     return 'raw'; // Default to raw for safety
                 }
-            }
+            },
+            // Make files publicly accessible (no 401 errors)
+            access_mode: 'public',
+            type: 'upload'
             // Completely remove allowed_formats to accept ALL file types
         },
     });
@@ -773,82 +776,10 @@ app.get('/file/:roomId/:filename', (req, res) => {
         if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
             // Check if we have a Cloudinary URL
             if (metadata.cloudinaryData.secure_url) {
-                console.log(`Serving file from Cloudinary (using SDK): ${metadata.cloudinaryData.secure_url}`);
-                
-                // Use Cloudinary SDK to generate a signed URL or fetch the file
-                const publicId = metadata.cloudinaryData.public_id;
-                const resourceType = metadata.cloudinaryData.resource_type || 'raw';
-                
-                if (publicId) {
-                    // Generate a signed URL using Cloudinary SDK
-                    const signedUrl = cloudinary.url(publicId, {
-                        resource_type: resourceType,
-                        secure: true,
-                        sign_url: true,
-                        expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour expiry
-                    });
-                    
-                    console.log(`Generated signed URL: ${signedUrl}`);
-                    
-                    // Fetch from the signed URL
-                    const https = require('https');
-                    const url = require('url');
-                    
-                    const parsedUrl = url.parse(signedUrl);
-                    
-                    const options = {
-                        hostname: parsedUrl.hostname,
-                        path: parsedUrl.path,
-                        method: 'GET',
-                        headers: {
-                            'User-Agent': 'DropRoom-Server/1.0'
-                        }
-                    };
-                    
-                    const request = https.request(options, (cloudinaryRes) => {
-                        console.log(`Cloudinary signed URL response status: ${cloudinaryRes.statusCode}`);
-                        
-                        if (cloudinaryRes.statusCode === 200) {
-                            // Set headers for file download
-                            res.setHeader('Content-Type', cloudinaryRes.headers['content-type'] || 'application/octet-stream');
-                            res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-                            if (cloudinaryRes.headers['content-length']) {
-                                res.setHeader('Content-Length', cloudinaryRes.headers['content-length']);
-                            }
-                            
-                            // Pipe the file directly to the response
-                            cloudinaryRes.pipe(res);
-                        } else {
-                            console.error(`Cloudinary signed URL returned error: ${cloudinaryRes.statusCode}`);
-                            // Return error instead of redirecting to Cloudinary
-                            res.status(502).json({ 
-                                error: 'Failed to fetch file from Cloudinary',
-                                details: `Cloudinary returned ${cloudinaryRes.statusCode}`,
-                                message: 'Please try downloading the file instead'
-                            });
-                        }
-                    });
-                    
-                    request.on('error', (error) => {
-                        console.error('Error fetching from Cloudinary signed URL:', error);
-                        // Return error instead of redirecting
-                        res.status(502).json({ 
-                            error: 'Failed to fetch file from Cloudinary',
-                            details: error.message,
-                            message: 'Please try downloading the file instead'
-                        });
-                    });
-                    
-                    request.end();
-                    return;
-                } else {
-                    // Return error instead of redirecting if no public_id
-                    console.log('No public_id found, cannot generate signed URL');
-                    return res.status(500).json({ 
-                        error: 'Cannot access file - missing public ID',
-                        message: 'Please try downloading the file instead'
-                    });
-                }
+                console.log(`Redirecting to Cloudinary public URL: ${metadata.cloudinaryData.secure_url}`);
+                // Files are now public, so we can safely redirect
+                res.redirect(302, metadata.cloudinaryData.secure_url);
+                return;
             } else {
                 console.error('Missing Cloudinary URL for file:', filename);
                 console.error('Cloudinary data:', JSON.stringify(metadata.cloudinaryData, null, 2));
