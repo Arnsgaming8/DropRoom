@@ -782,49 +782,35 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Use Cloudinary's download API
-                    const downloadUrl = cloudinary.url(publicId, {
+                    // Use Cloudinary SDK to generate signed URL and fetch
+                    const signedUrl = cloudinary.url(publicId, {
                         resource_type: resourceType,
                         secure: true,
-                        sign_url: true,
-                        attachment: false // inline display
+                        sign_url: true
                     });
                     
-                    console.log(`Generated download URL: ${downloadUrl}`);
+                    console.log(`Signed URL: ${signedUrl}`);
                     
-                    // Fetch from download URL
-                    const https = require('https');
-                    const url = require('url');
-                    const parsedUrl = url.parse(downloadUrl);
+                    // Fetch using Node.js fetch (available in Node 18+)
+                    fetch(signedUrl)
+                        .then(response => {
+                            if (response.ok) {
+                                res.setHeader('Content-Type', response.headers.get('content-type') || 'application/octet-stream');
+                                res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+                                res.setHeader('Cache-Control', 'public, max-age=3600');
+                                
+                                // Stream the response
+                                response.body.pipe(res);
+                            } else {
+                                console.error(`Cloudinary error: ${response.status}`);
+                                res.status(502).json({ error: 'Failed to fetch file' });
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Fetch error:', error);
+                            res.status(502).json({ error: 'Failed to connect to Cloudinary' });
+                        });
                     
-                    const options = {
-                        hostname: parsedUrl.hostname,
-                        path: parsedUrl.path,
-                        method: 'GET'
-                    };
-                    
-                    const request = https.request(options, (cloudinaryRes) => {
-                        console.log(`Cloudinary response: ${cloudinaryRes.statusCode}`);
-                        
-                        if (cloudinaryRes.statusCode === 200) {
-                            res.setHeader('Content-Type', cloudinaryRes.headers['content-type'] || 'application/octet-stream');
-                            res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-                            res.setHeader('Cache-Control', 'public, max-age=3600');
-                            
-                            cloudinaryRes.pipe(res);
-                        } else {
-                            console.error(`Cloudinary error: ${cloudinaryRes.statusCode}`);
-                            // Try redirect as fallback
-                            res.redirect(302, downloadUrl);
-                        }
-                    });
-                    
-                    request.on('error', (error) => {
-                        console.error('Error:', error);
-                        res.status(502).json({ error: 'Failed to connect' });
-                    });
-                    
-                    request.end();
                     return;
                 } else {
                     res.status(404).json({ error: 'File not found' });
