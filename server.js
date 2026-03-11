@@ -782,18 +782,17 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Generate authenticated download URL
+                    // Use Cloudinary's download API
                     const downloadUrl = cloudinary.url(publicId, {
                         resource_type: resourceType,
                         secure: true,
-                        type: 'authenticated',
                         sign_url: true,
-                        expires_at: Math.floor(Date.now() / 1000) + 3600
+                        attachment: false // inline display
                     });
                     
-                    console.log(`Generated authenticated URL: ${downloadUrl}`);
+                    console.log(`Generated download URL: ${downloadUrl}`);
                     
-                    // Fetch from authenticated URL
+                    // Fetch from download URL
                     const https = require('https');
                     const url = require('url');
                     const parsedUrl = url.parse(downloadUrl);
@@ -801,10 +800,7 @@ app.get('/file/:roomId/:filename', (req, res) => {
                     const options = {
                         hostname: parsedUrl.hostname,
                         path: parsedUrl.path,
-                        method: 'GET',
-                        headers: {
-                            'User-Agent': 'DropRoom-Server/1.0'
-                        }
+                        method: 'GET'
                     };
                     
                     const request = https.request(options, (cloudinaryRes) => {
@@ -813,15 +809,13 @@ app.get('/file/:roomId/:filename', (req, res) => {
                         if (cloudinaryRes.statusCode === 200) {
                             res.setHeader('Content-Type', cloudinaryRes.headers['content-type'] || 'application/octet-stream');
                             res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-                            if (cloudinaryRes.headers['content-length']) {
-                                res.setHeader('Content-Length', cloudinaryRes.headers['content-length']);
-                            }
                             res.setHeader('Cache-Control', 'public, max-age=3600');
                             
                             cloudinaryRes.pipe(res);
                         } else {
                             console.error(`Cloudinary error: ${cloudinaryRes.statusCode}`);
-                            res.status(502).json({ error: 'Failed to fetch file' });
+                            // Try redirect as fallback
+                            res.redirect(302, downloadUrl);
                         }
                     });
                     
