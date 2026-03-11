@@ -600,11 +600,43 @@ class DropRoom {
             const file = files.find(f => f.name === filename);
             
             if (file) {
-                // ALL files now use backend URL for consistent behavior
                 const encodedFilename = encodeURIComponent(file.name);
                 const backendUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
-                console.log('Opening file via backend URL:', backendUrl);
-                window.open(backendUrl, '_blank');
+                
+                // Check file extension for viewer strategy
+                const ext = filename.split('.').pop().toLowerCase();
+                const pdfExtensions = ['pdf'];
+                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+                const docExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf'];
+                const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'];
+                const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'wmv'];
+                
+                if (pdfExtensions.includes(ext)) {
+                    // Use Google Docs Viewer for PDFs
+                    console.log('Opening PDF with Google Docs Viewer');
+                    const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(backendUrl)}&embedded=true`;
+                    window.open(viewerUrl, '_blank');
+                } else if (imageExtensions.includes(ext)) {
+                    // Open images directly in new tab
+                    window.open(backendUrl, '_blank');
+                } else if (docExtensions.includes(ext)) {
+                    // Use Google Docs Viewer for documents
+                    console.log('Opening document with Google Docs Viewer');
+                    const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(backendUrl)}&embedded=true`;
+                    window.open(viewerUrl, '_blank');
+                } else if (audioExtensions.includes(ext)) {
+                    // Open audio in new tab with audio player
+                    console.log('Opening audio file');
+                    window.open(backendUrl, '_blank');
+                } else if (videoExtensions.includes(ext)) {
+                    // Open video in new tab with video player
+                    console.log('Opening video file');
+                    window.open(backendUrl, '_blank');
+                } else {
+                    // Default: open backend URL
+                    console.log('Opening file via backend URL:', backendUrl);
+                    window.open(backendUrl, '_blank');
+                }
             } else {
                 console.error('File not found:', filename);
                 this.showToast('File not found', 'error');
