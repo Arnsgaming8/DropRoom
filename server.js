@@ -776,49 +776,63 @@ app.get('/file/:roomId/:filename', (req, res) => {
         if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
             // Check if we have a Cloudinary URL
             if (metadata.cloudinaryData.secure_url) {
-                console.log(`Fetching file from Cloudinary: ${metadata.cloudinaryData.secure_url}`);
+                console.log(`Serving file: ${metadata.cloudinaryData.secure_url}`);
                 
-                const cloudinaryUrl = metadata.cloudinaryData.secure_url;
-                const https = require('https');
-                const url = require('url');
-                const parsedUrl = url.parse(cloudinaryUrl);
+                const publicId = metadata.cloudinaryData.public_id;
+                const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
-                const options = {
-                    hostname: parsedUrl.hostname,
-                    path: parsedUrl.path,
-                    method: 'GET',
-                    headers: {
-                        'User-Agent': 'DropRoom-Server/1.0'
-                    }
-                };
-                
-                const request = https.request(options, (cloudinaryRes) => {
-                    console.log(`Cloudinary response status: ${cloudinaryRes.statusCode}`);
+                if (publicId) {
+                    // Generate signed URL using Cloudinary SDK
+                    const signedUrl = cloudinary.url(publicId, {
+                        resource_type: resourceType,
+                        secure: true,
+                        sign_url: true
+                    });
                     
-                    if (cloudinaryRes.statusCode === 200) {
-                        // Set headers for inline display
-                        res.setHeader('Content-Type', cloudinaryRes.headers['content-type'] || 'application/octet-stream');
-                        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-                        if (cloudinaryRes.headers['content-length']) {
-                            res.setHeader('Content-Length', cloudinaryRes.headers['content-length']);
+                    console.log(`Generated signed URL: ${signedUrl}`);
+                    
+                    // Fetch from signed URL
+                    const https = require('https');
+                    const url = require('url');
+                    const parsedUrl = url.parse(signedUrl);
+                    
+                    const options = {
+                        hostname: parsedUrl.hostname,
+                        path: parsedUrl.path,
+                        method: 'GET',
+                        headers: {
+                            'User-Agent': 'DropRoom-Server/1.0'
                         }
-                        res.setHeader('Cache-Control', 'public, max-age=3600');
+                    };
+                    
+                    const request = https.request(options, (cloudinaryRes) => {
+                        console.log(`Cloudinary signed URL response: ${cloudinaryRes.statusCode}`);
                         
-                        // Stream file directly to response
-                        cloudinaryRes.pipe(res);
-                    } else {
-                        console.error(`Cloudinary returned error: ${cloudinaryRes.statusCode}`);
-                        res.status(502).json({ error: 'Failed to fetch file from Cloudinary' });
-                    }
-                });
-                
-                request.on('error', (error) => {
-                    console.error('Error fetching from Cloudinary:', error);
-                    res.status(502).json({ error: 'Failed to connect to Cloudinary' });
-                });
-                
-                request.end();
-                return;
+                        if (cloudinaryRes.statusCode === 200) {
+                            res.setHeader('Content-Type', cloudinaryRes.headers['content-type'] || 'application/octet-stream');
+                            res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+                            if (cloudinaryRes.headers['content-length']) {
+                                res.setHeader('Content-Length', cloudinaryRes.headers['content-length']);
+                            }
+                            res.setHeader('Cache-Control', 'public, max-age=3600');
+                            
+                            cloudinaryRes.pipe(res);
+                        } else {
+                            console.error(`Cloudinary error: ${cloudinaryRes.statusCode}`);
+                            res.status(502).json({ error: 'Failed to fetch file from Cloudinary' });
+                        }
+                    });
+                    
+                    request.on('error', (error) => {
+                        console.error('Error fetching from Cloudinary:', error);
+                        res.status(502).json({ error: 'Failed to connect to Cloudinary' });
+                    });
+                    
+                    request.end();
+                    return;
+                } else {
+                    res.status(404).json({ error: 'File not found' });
+                }
             } else {
                 console.error('Missing Cloudinary URL for file:', filename);
                 console.error('Cloudinary data:', JSON.stringify(metadata.cloudinaryData, null, 2));
