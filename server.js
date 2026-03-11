@@ -782,35 +782,18 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Use Cloudinary SDK to generate signed URL and fetch
+                    // Generate signed URL for private files
                     const signedUrl = cloudinary.url(publicId, {
                         resource_type: resourceType,
                         secure: true,
+                        type: 'authenticated',
                         sign_url: true
                     });
                     
-                    console.log(`Signed URL: ${signedUrl}`);
+                    console.log(`Redirecting to signed URL: ${signedUrl.substring(0, 100)}...`);
                     
-                    // Fetch using Node.js fetch (available in Node 18+)
-                    fetch(signedUrl)
-                        .then(response => {
-                            if (response.ok) {
-                                res.setHeader('Content-Type', response.headers.get('content-type') || 'application/octet-stream');
-                                res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-                                res.setHeader('Cache-Control', 'public, max-age=3600');
-                                
-                                // Stream the response
-                                response.body.pipe(res);
-                            } else {
-                                console.error(`Cloudinary error: ${response.status}`);
-                                res.status(502).json({ error: 'Failed to fetch file' });
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Fetch error:', error);
-                            res.status(502).json({ error: 'Failed to connect to Cloudinary' });
-                        });
-                    
+                    // Redirect to signed URL - browser will handle the authentication
+                    res.redirect(302, signedUrl);
                     return;
                 } else {
                     res.status(404).json({ error: 'File not found' });
