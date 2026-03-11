@@ -605,36 +605,13 @@ class DropRoom {
                 
                 // Check file extension for viewer strategy
                 const ext = filename.split('.').pop().toLowerCase();
-                const pdfExtensions = ['pdf'];
-                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
-                const docExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf'];
-                const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'];
-                const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'wmv'];
+                const viewerExts = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'webm', 'mp3', 'wav', 'txt', 'md'];
                 
-                if (pdfExtensions.includes(ext)) {
-                    // Use Google Docs Viewer for PDFs
-                    console.log('Opening PDF with Google Docs Viewer');
-                    const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(backendUrl)}&embedded=true`;
-                    window.open(viewerUrl, '_blank');
-                } else if (imageExtensions.includes(ext)) {
-                    // Open images directly in new tab
-                    window.open(backendUrl, '_blank');
-                } else if (docExtensions.includes(ext)) {
-                    // Use Google Docs Viewer for documents
-                    console.log('Opening document with Google Docs Viewer');
-                    const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(backendUrl)}&embedded=true`;
-                    window.open(viewerUrl, '_blank');
-                } else if (audioExtensions.includes(ext)) {
-                    // Open audio in new tab with audio player
-                    console.log('Opening audio file');
-                    window.open(backendUrl, '_blank');
-                } else if (videoExtensions.includes(ext)) {
-                    // Open video in new tab with video player
-                    console.log('Opening video file');
-                    window.open(backendUrl, '_blank');
+                if (viewerExts.includes(ext)) {
+                    // Use file viewer for supported types
+                    this.openFileInViewer(filename);
                 } else {
-                    // Default: open backend URL
-                    console.log('Opening file via backend URL:', backendUrl);
+                    // Open directly for unsupported types
                     window.open(backendUrl, '_blank');
                 }
             } else {
@@ -645,6 +622,88 @@ class DropRoom {
             console.error('Error opening file:', error);
             this.showToast('Failed to open file', 'error');
         }
+    }
+
+    async openFileInViewer(filename) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/list/${this.roomId}`);
+            const files = await response.json();
+            
+            const file = files.find(f => f.name === filename);
+            
+            if (file) {
+                const encodedFilename = encodeURIComponent(file.name);
+                const backendUrl = `${this.apiBaseUrl}/file/${this.roomId}/${encodedFilename}`;
+                
+                // Show the modal
+                this.showFileViewer(file, backendUrl);
+            } else {
+                console.error('File not found:', filename);
+                this.showToast('File not found', 'error');
+            }
+        } catch (error) {
+            console.error('Error opening file in viewer:', error);
+            this.showToast('Failed to open file', 'error');
+        }
+    }
+
+    showFileViewer(file, url) {
+        const modal = document.getElementById('file-viewer-modal');
+        const filenameEl = document.getElementById('viewer-filename');
+        const container = document.getElementById('viewer-container');
+        
+        if (!modal || !filenameEl || !container) {
+            console.error('File viewer elements not found');
+            this.openFile(file.name);
+            return;
+        }
+        
+        const ext = file.name.split('.').pop().toLowerCase();
+        filenameEl.textContent = file.name;
+        
+        // Determine viewer type
+        const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'];
+        const videoExts = ['mp4', 'webm', 'mov', 'avi', 'mkv'];
+        const audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'];
+        const pdfExts = ['pdf'];
+        const textExts = ['txt', 'md', 'json', 'js', 'css', 'html', 'xml'];
+        
+        let content = '';
+        
+        if (imageExts.includes(ext)) {
+            content = `<img src="${url}" alt="${file.name}" onerror="this.outerHTML='<div class=\\'viewer-error\\'>Failed to load image</div>'">`;
+        } else if (videoExts.includes(ext)) {
+            content = `<video controls autoplay><source src="${url}" type="video/${ext === 'mp4' ? 'mp4' : ext}">Your browser does not support video.</video>`;
+        } else if (audioExts.includes(ext)) {
+            content = `<audio controls autoplay><source src="${url}" type="audio/${ext === 'mp3' ? 'mpeg' : ext}">Your browser does not support audio.</audio>`;
+        } else if (pdfExts.includes(ext)) {
+            content = `<iframe src="https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true" allowfullscreen></iframe>`;
+        } else if (textExts.includes(ext)) {
+            content = `<iframe src="${url}" allowfullscreen></iframe>`;
+        } else {
+            content = `
+                <div class="viewer-unsupported">
+                    <p>Cannot preview this file type: .${ext}</p>
+                    <p><a href="${url}" target="_blank">Open in new tab</a> or <a href="${url}" download="${file.name}">Download</a></p>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = content;
+        modal.style.display = 'flex';
+        
+        // Add close handler
+        document.getElementById('close-viewer-btn').onclick = () => this.closeFileViewer();
+        modal.onclick = (e) => {
+            if (e.target === modal) this.closeFileViewer();
+        };
+    }
+
+    closeFileViewer() {
+        const modal = document.getElementById('file-viewer-modal');
+        const container = document.getElementById('viewer-container');
+        if (modal) modal.style.display = 'none';
+        if (container) container.innerHTML = '';
     }
 
     openPdfWithFallbacks(file, primaryUrl) {
