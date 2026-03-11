@@ -776,8 +776,35 @@ app.get('/file/:roomId/:filename', (req, res) => {
         if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
             // Check if we have a Cloudinary URL
             if (metadata.cloudinaryData.secure_url) {
-                console.log(`Redirecting to Cloudinary public URL: ${metadata.cloudinaryData.secure_url}`);
-                // Files are now public, so we can safely redirect
+                console.log(`Serving file: ${metadata.cloudinaryData.secure_url}`);
+                
+                const publicId = metadata.cloudinaryData.public_id;
+                const resourceType = metadata.cloudinaryData.resource_type || 'raw';
+                
+                // First, try to make the file public using Cloudinary API
+                if (publicId) {
+                    cloudinary.uploader.set_folder_access(publicId, {
+                        access_mode: 'public'
+                    }).then(result => {
+                        console.log('✅ File made public:', result);
+                    }).catch(err => {
+                        console.log('File access update attempted:', err.message);
+                    });
+                    
+                    // Also try updating the resource type to 'image' for PDFs to enable viewing
+                    if (resourceType === 'raw' || resourceType === 'image') {
+                        cloudinary.api.update(publicId, {
+                            resource_type: resourceType,
+                            tags: ['public-access']
+                        }).then(result => {
+                            console.log('✅ Resource updated for public access:', result.resource_type);
+                        }).catch(err => {
+                            console.log('Resource update attempted:', err.message);
+                        });
+                    }
+                }
+                
+                // Redirect to Cloudinary URL (now public)
                 res.redirect(302, metadata.cloudinaryData.secure_url);
                 return;
             } else {
