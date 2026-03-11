@@ -820,24 +820,34 @@ app.get('/file/:roomId/:filename', (req, res) => {
                             cloudinaryRes.pipe(res);
                         } else {
                             console.error(`Cloudinary signed URL returned error: ${cloudinaryRes.statusCode}`);
-                            // Fallback to original URL if signed URL fails
-                            res.redirect(302, metadata.cloudinaryData.secure_url);
+                            // Return error instead of redirecting to Cloudinary
+                            res.status(502).json({ 
+                                error: 'Failed to fetch file from Cloudinary',
+                                details: `Cloudinary returned ${cloudinaryRes.statusCode}`,
+                                message: 'Please try downloading the file instead'
+                            });
                         }
                     });
                     
                     request.on('error', (error) => {
                         console.error('Error fetching from Cloudinary signed URL:', error);
-                        // Fallback to original URL
-                        res.redirect(302, metadata.cloudinaryData.secure_url);
+                        // Return error instead of redirecting
+                        res.status(502).json({ 
+                            error: 'Failed to fetch file from Cloudinary',
+                            details: error.message,
+                            message: 'Please try downloading the file instead'
+                        });
                     });
                     
                     request.end();
                     return;
                 } else {
-                    // Fallback to original URL if no public_id
-                    console.log('No public_id found, redirecting to original URL');
-                    res.redirect(302, metadata.cloudinaryData.secure_url);
-                    return;
+                    // Return error instead of redirecting if no public_id
+                    console.log('No public_id found, cannot generate signed URL');
+                    return res.status(500).json({ 
+                        error: 'Cannot access file - missing public ID',
+                        message: 'Please try downloading the file instead'
+                    });
                 }
             } else {
                 console.error('Missing Cloudinary URL for file:', filename);
