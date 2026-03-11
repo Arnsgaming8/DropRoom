@@ -551,6 +551,9 @@ class DropRoom {
         filesList.innerHTML = files.map(file => {
             console.log('Creating HTML for file:', file.name);
             
+            // Use originalName if available, otherwise parse from filename
+            const displayName = file.originalName || file.name.replace(/^\d+-/, '').replace(/_/g, ' ');
+            
             const isOwner = file.uploaderId === this.uploaderId;
             const deleteButton = isOwner ? `
                 <button class="btn-delete" onclick="dropRoom.confirmDelete('${file.name}', '${file.uploaderId}')">
@@ -565,7 +568,7 @@ class DropRoom {
             return `
                 <div class="file-item">
                     <div class="file-info">
-                        <div class="file-name">${file.name}</div>
+                        <div class="file-name">${displayName}</div>
                         <div class="file-size">${this.formatFileSize(file.size)}</div>
                         ${file.uploadedAt ? `<div class="file-upload-time">Uploaded ${this.formatUploadTime(file.uploadedAt)}</div>` : ''}
                     </div>
