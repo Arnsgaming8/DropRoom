@@ -776,36 +776,48 @@ app.get('/file/:roomId/:filename', (req, res) => {
         if (STORAGE_TYPE === 'cloudinary' && metadata.cloudinaryData) {
             // Check if we have a Cloudinary URL
             if (metadata.cloudinaryData.secure_url) {
-                console.log(`Serving file: ${metadata.cloudinaryData.secure_url}`);
+                console.log(`Fetching file from Cloudinary: ${metadata.cloudinaryData.secure_url}`);
                 
-                const publicId = metadata.cloudinaryData.public_id;
-                const resourceType = metadata.cloudinaryData.resource_type || 'raw';
+                const cloudinaryUrl = metadata.cloudinaryData.secure_url;
+                const https = require('https');
+                const url = require('url');
+                const parsedUrl = url.parse(cloudinaryUrl);
                 
-                // First, try to make the file public using Cloudinary API
-                if (publicId) {
-                    cloudinary.uploader.set_folder_access(publicId, {
-                        access_mode: 'public'
-                    }).then(result => {
-                        console.log('✅ File made public:', result);
-                    }).catch(err => {
-                        console.log('File access update attempted:', err.message);
-                    });
-                    
-                    // Also try updating the resource type to 'image' for PDFs to enable viewing
-                    if (resourceType === 'raw' || resourceType === 'image') {
-                        cloudinary.api.update(publicId, {
-                            resource_type: resourceType,
-                            tags: ['public-access']
-                        }).then(result => {
-                            console.log('✅ Resource updated for public access:', result.resource_type);
-                        }).catch(err => {
-                            console.log('Resource update attempted:', err.message);
-                        });
+                const options = {
+                    hostname: parsedUrl.hostname,
+                    path: parsedUrl.path,
+                    method: 'GET',
+                    headers: {
+                        'User-Agent': 'DropRoom-Server/1.0'
                     }
-                }
+                };
                 
-                // Redirect to Cloudinary URL (now public)
-                res.redirect(302, metadata.cloudinaryData.secure_url);
+                const request = https.request(options, (cloudinaryRes) => {
+                    console.log(`Cloudinary response status: ${cloudinaryRes.statusCode}`);
+                    
+                    if (cloudinaryRes.statusCode === 200) {
+                        // Set headers for inline display
+                        res.setHeader('Content-Type', cloudinaryRes.headers['content-type'] || 'application/octet-stream');
+                        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+                        if (cloudinaryRes.headers['content-length']) {
+                            res.setHeader('Content-Length', cloudinaryRes.headers['content-length']);
+                        }
+                        res.setHeader('Cache-Control', 'public, max-age=3600');
+                        
+                        // Stream file directly to response
+                        cloudinaryRes.pipe(res);
+                    } else {
+                        console.error(`Cloudinary returned error: ${cloudinaryRes.statusCode}`);
+                        res.status(502).json({ error: 'Failed to fetch file from Cloudinary' });
+                    }
+                });
+                
+                request.on('error', (error) => {
+                    console.error('Error fetching from Cloudinary:', error);
+                    res.status(502).json({ error: 'Failed to connect to Cloudinary' });
+                });
+                
+                request.end();
                 return;
             } else {
                 console.error('Missing Cloudinary URL for file:', filename);
