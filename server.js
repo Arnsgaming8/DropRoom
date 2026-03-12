@@ -782,19 +782,36 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Use Cloudinary SDK to generate proper signed URL for authenticated files
-                    const signedUrl = cloudinary.url(publicId, {
+                    // First, make the file public using Admin API
+                    cloudinary.api.update(publicId, {
                         resource_type: resourceType,
-                        secure: true,
-                        type: 'authenticated', // Files are authenticated
-                        sign_url: true,
-                        expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour expiry
+                        type: 'upload',
+                        access_mode: 'public'
+                    }).then(updateResult => {
+                        console.log('✅ File made public');
+                        
+                        // Now generate a simple public URL
+                        const publicUrl = cloudinary.url(publicId, {
+                            resource_type: resourceType,
+                            secure: true,
+                            type: 'upload'
+                        });
+                        
+                        console.log(`Redirecting to public URL`);
+                        res.redirect(302, publicUrl);
+                    }).catch(updateErr => {
+                        console.log('Could not make public, trying public URL anyway...');
+                        
+                        // Try public URL anyway
+                        const publicUrl = cloudinary.url(publicId, {
+                            resource_type: resourceType,
+                            secure: true,
+                            type: 'upload'
+                        });
+                        
+                        res.redirect(302, publicUrl);
                     });
                     
-                    console.log(`Signed URL generated: ${signedUrl.substring(0, 80)}...`);
-                    
-                    // Redirect to the signed URL
-                    res.redirect(302, signedUrl);
                     return;
                 } else {
                     res.status(404).json({ error: 'File not found' });
