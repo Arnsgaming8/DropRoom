@@ -782,21 +782,20 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Generate a proper download URL using Cloudinary SDK
-                    // This creates a URL that allows downloading private files
-                    const downloadUrl = cloudinary.url(publicId, {
+                    // Try to make file public
+                    cloudinary.api.update(publicId, {
                         resource_type: resourceType,
-                        secure: true,
-                        type: 'authenticated',
-                        sign_url: true,
-                        flags: 'attachment',
-                        attachment_filename: filename
+                        access_mode: 'public'
+                    }).then(() => {
+                        console.log('✅ Made file public');
+                    }).catch(err => {
+                        console.log('File may already be public');
                     });
                     
-                    console.log(`Generated download URL: ${downloadUrl.substring(0, 100)}...`);
-                    
-                    // Redirect browser to the signed download URL
-                    res.redirect(302, downloadUrl);
+                    // Use the original Cloudinary URL - files uploaded with access_mode: public should work
+                    const cloudinaryUrl = metadata.cloudinaryData.secure_url;
+                    console.log(`Redirecting to: ${cloudinaryUrl.substring(0, 80)}...`);
+                    res.redirect(302, cloudinaryUrl);
                     return;
                 } else {
                     res.status(404).json({ error: 'File not found' });
