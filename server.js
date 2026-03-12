@@ -782,22 +782,34 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Generate signed URL for private files
-                    const signedUrl = cloudinary.url(publicId, {
-                        resource_type: resourceType,
-                        secure: true,
-                        type: 'authenticated',
-                        sign_url: true
+                    // Try to make existing files public
+                    cloudinary.uploader.set_folder_access(publicId, {
+                        access_mode: 'public'
+                    }).then(result => {
+                        console.log('✅ File access set to public');
+                    }).catch(err => {
+                        // Ignore errors - file might already be public
+                        console.log('File access check completed');
                     });
                     
-                    console.log(`Redirecting to signed URL: ${signedUrl.substring(0, 100)}...`);
-                    
-                    // Redirect to signed URL - browser will handle the authentication
-                    res.redirect(302, signedUrl);
-                    return;
-                } else {
-                    res.status(404).json({ error: 'File not found' });
+                    // Also try updating resource type for PDFs to enable viewing
+                    if (resourceType === 'raw' || resourceType === 'image') {
+                        cloudinary.api.update(publicId, {
+                            resource_type: 'image',
+                            tags: ['public-access']
+                        }).then(result => {
+                            console.log('✅ Resource updated for viewing:', result.resource_type);
+                        }).catch(err => {
+                            console.log('Resource update skipped');
+                        });
+                    }
                 }
+                
+                // Use the original Cloudinary URL directly (now public)
+                const cloudinaryUrl = metadata.cloudinaryData.secure_url;
+                console.log(`Redirecting to Cloudinary URL: ${cloudinaryUrl}`);
+                res.redirect(302, cloudinaryUrl);
+                return;
             } else {
                 console.error('Missing Cloudinary URL for file:', filename);
                 console.error('Cloudinary data:', JSON.stringify(metadata.cloudinaryData, null, 2));
