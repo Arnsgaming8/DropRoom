@@ -782,57 +782,26 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Use Cloudinary Admin API to get file info and create download URL
-                    cloudinary.api.resource(publicId, {
-                        resource_type: resourceType,
-                        type: 'upload'
-                    }).then(resource => {
-                        console.log('✅ Got resource info');
-                        
-                        // Generate a fresh signed URL for download
-                        const downloadUrl = cloudinary.url(publicId, {
-                            resource_type: resourceType,
-                            secure: true,
-                            sign_url: true,
-                            type: 'authenticated'
-                        });
-                        
-                        console.log(`Download URL: ${downloadUrl.substring(0, 80)}...`);
-                        
-                        // Use https to fetch with the signed URL
-                        const https = require('https');
-                        const url = require('url');
-                        const parsedUrl = url.parse(downloadUrl);
-                        
-                        const options = {
-                            hostname: parsedUrl.hostname,
-                            path: parsedUrl.path,
-                            method: 'GET'
-                        };
-                        
-                        const req = https.request(options, (cloudRes) => {
-                            if (cloudRes.statusCode === 200) {
-                                res.setHeader('Content-Type', cloudRes.headers['content-type'] || 'application/octet-stream');
-                                res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-                                res.setHeader('Cache-Control', 'public, max-age=3600');
-                                cloudRes.pipe(res);
-                            } else {
-                                console.error(`Cloudinary error: ${cloudRes.statusCode}`);
-                                res.status(502).json({ error: 'Failed to fetch file' });
-                            }
-                        });
-                        
-                        req.on('error', (error) => {
-                            console.error('Request error:', error);
-                            res.status(502).json({ error: 'Failed to connect to Cloudinary' });
-                        });
-                        
-                        req.end();
-                    }).catch(error => {
-                        console.error('Failed to get resource:', error);
-                        res.status(502).json({ error: 'File not found on Cloudinary' });
-                    });
+                    // Use Cloudinary's download API - this is the correct way to serve private files
+                    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dxtujnsmb';
                     
+                    // Generate signed download URL using Cloudinary's download endpoint
+                    const timestamp = Math.round(Date.now() / 1000);
+                    const apiKey = process.env.CLOUDINARY_API_KEY;
+                    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+                    
+                    // Create the download URL
+                    const downloadPath = `${resourceType}/download/${publicId}`;
+                    const signature = crypto.createHash('sha1')
+                        .update(`download_path=${downloadPath}&timestamp=${timestamp}${apiSecret}`)
+                        .digest('hex');
+                    
+                    const downloadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${downloadPath}?timestamp=${timestamp}&signature=${signature}&api_key=${apiKey}`;
+                    
+                    console.log(`Download URL generated`);
+                    
+                    // Redirect to the download URL
+                    res.redirect(302, downloadUrl);
                     return;
                 } else {
                     res.status(404).json({ error: 'File not found' });
