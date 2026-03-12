@@ -782,17 +782,28 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Generate URL with type 'upload' (public access)
-                    const publicUrl = cloudinary.url(publicId, {
-                        resource_type: resourceType,
-                        secure: true,
-                        type: 'upload' // This should work if file is public
+                    // Use Admin API to get resource info and check access mode
+                    cloudinary.api.resource(publicId, {
+                        resource_type: resourceType
+                    }).then(resource => {
+                        console.log(`Resource access_type: ${resource.access_mode}`);
+                        
+                        // Generate URL based on actual access mode
+                        const url = cloudinary.url(publicId, {
+                            resource_type: resourceType,
+                            secure: true,
+                            type: resource.access_mode === 'public' ? 'upload' : 'authenticated',
+                            sign_url: resource.access_mode !== 'public'
+                        });
+                        
+                        console.log(`Generated URL type: ${resource.access_mode === 'public' ? 'public' : 'authenticated'}`);
+                        res.redirect(302, url);
+                    }).catch(err => {
+                        console.error('Failed to get resource:', err.message);
+                        // Fallback to original URL
+                        res.redirect(302, metadata.cloudinaryData.secure_url);
                     });
                     
-                    console.log(`Public URL generated`);
-                    
-                    // Redirect to the public URL
-                    res.redirect(302, publicUrl);
                     return;
                 } else {
                     res.status(404).json({ error: 'File not found' });
