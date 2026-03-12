@@ -782,20 +782,49 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Generate download URL using Cloudinary's download API
-                    const downloadUrl = cloudinary.url(publicId, {
+                    // Generate signed URL that backend can access
+                    const signedUrl = cloudinary.url(publicId, {
                         resource_type: resourceType,
                         secure: true,
-                        type: 'private', // Explicitly use private type
-                        sign_url: true,
-                        flags: 'attachment',
-                        attachment: filename
+                        sign_url: true
                     });
                     
-                    console.log(`Generated download URL: ${downloadUrl.substring(0, 80)}...`);
+                    console.log(`Fetching from: ${signedUrl.substring(0, 80)}...`);
                     
-                    // Redirect to download URL
-                    res.redirect(302, downloadUrl);
+                    // Fetch the file content using Node.js https
+                    const https = require('https');
+                    const url = require('url');
+                    const parsedUrl = url.parse(signedUrl);
+                    
+                    const options = {
+                        hostname: parsedUrl.hostname,
+                        path: parsedUrl.path,
+                        method: 'GET'
+                    };
+                    
+                    const req = https.request(options, (cloudRes) => {
+                        console.log(`Cloudinary response: ${cloudRes.statusCode}`);
+                        
+                        if (cloudRes.statusCode === 200) {
+                            // Set headers for inline display
+                            res.setHeader('Content-Type', cloudRes.headers['content-type'] || 'application/octet-stream');
+                            res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+                            res.setHeader('Cache-Control', 'public, max-age=3600');
+                            
+                            // Pipe Cloudinary response directly to Express response
+                            cloudRes.pipe(res);
+                        } else {
+                            console.error(`Cloudinary error: ${cloudRes.statusCode}`);
+                            res.status(502).json({ error: 'Failed to fetch file' });
+                        }
+                    });
+                    
+                    req.on('error', (error) => {
+                        console.error('Request error:', error);
+                        res.status(502).json({ error: 'Failed to connect to Cloudinary' });
+                    });
+                    
+                    req.end();
                     return;
                 } else {
                     res.status(404).json({ error: 'File not found' });
