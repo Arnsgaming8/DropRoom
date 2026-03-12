@@ -782,26 +782,23 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Try to make file public
-                    cloudinary.api.update(publicId, {
+                    // Generate a proper signed URL for authenticated access
+                    const signedUrl = cloudinary.url(publicId, {
                         resource_type: resourceType,
-                        access_mode: 'public'
-                    }).then(() => {
-                        console.log('✅ Made file public');
-                    }).catch(err => {
-                        console.log('File may already be public');
+                        secure: true,
+                        sign_url: true,
+                        type: 'authenticated'
                     });
                     
-                    // Use original Cloudinary URL - should work if file is public
-                    res.redirect(302, metadata.cloudinaryData.secure_url);
+                    console.log(`Generated signed URL: ${signedUrl.substring(0, 80)}...`);
+                    res.redirect(302, signedUrl);
                     return;
                 } else {
                     res.status(404).json({ error: 'File not found' });
                 }
             } else {
                 console.error('Missing Cloudinary URL for file:', filename);
-                console.error('Cloudinary data:', JSON.stringify(metadata.cloudinaryData, null, 2));
-                return res.status(404).json({ error: 'File URL not found - please re-upload the file' });
+                return res.status(404).json({ error: 'File URL not found' });
             }
         } else {
             // Serve file from local storage
