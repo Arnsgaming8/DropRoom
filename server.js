@@ -780,29 +780,21 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 
                 const publicId = metadata.cloudinaryData.public_id;
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
-                const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dxtujnsmb';
                 
                 if (publicId) {
-                    // Generate a direct URL using Cloudinary's URL format
-                    // This format works for both public and private files with signature
-                    const timestamp = Math.round(Date.now() / 1000);
-                    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+                    // Use Cloudinary SDK to generate proper signed URL for authenticated files
+                    const signedUrl = cloudinary.url(publicId, {
+                        resource_type: resourceType,
+                        secure: true,
+                        type: 'authenticated', // Files are authenticated
+                        sign_url: true,
+                        expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour expiry
+                    });
                     
-                    // Create the URL path
-                    const path = `${resourceType}/upload`;
+                    console.log(`Signed URL generated: ${signedUrl.substring(0, 80)}...`);
                     
-                    // Generate signature for private access
-                    const signature = crypto.createHash('sha1')
-                        .update(`timestamp=${timestamp}${apiSecret}`)
-                        .digest('hex');
-                    
-                    // Build the direct URL
-                    const directUrl = `https://res.cloudinary.com/${cloudName}/${path}/${publicId}?timestamp=${timestamp}&signature=${signature}`;
-                    
-                    console.log(`Direct URL generated`);
-                    
-                    // Redirect to the direct URL
-                    res.redirect(302, directUrl);
+                    // Redirect to the signed URL
+                    res.redirect(302, signedUrl);
                     return;
                 } else {
                     res.status(404).json({ error: 'File not found' });
