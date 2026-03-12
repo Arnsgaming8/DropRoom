@@ -782,32 +782,21 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Try to make existing files public
-                    cloudinary.uploader.set_folder_access(publicId, {
+                    // Use uploader.explicit to make file public
+                    cloudinary.uploader.explicit(publicId, {
+                        resource_type: resourceType,
+                        type: 'upload',
                         access_mode: 'public'
                     }).then(result => {
-                        console.log('✅ File access set to public');
+                        console.log('✅ File made public:', result.secure_url);
                     }).catch(err => {
-                        // Ignore errors - file might already be public
-                        console.log('File access check completed');
+                        console.log('Could not update file access:', err.message);
                     });
-                    
-                    // Also try updating resource type for PDFs to enable viewing
-                    if (resourceType === 'raw' || resourceType === 'image') {
-                        cloudinary.api.update(publicId, {
-                            resource_type: 'image',
-                            tags: ['public-access']
-                        }).then(result => {
-                            console.log('✅ Resource updated for viewing:', result.resource_type);
-                        }).catch(err => {
-                            console.log('Resource update skipped');
-                        });
-                    }
                 }
                 
-                // Use the original Cloudinary URL directly (now public)
+                // Use the Cloudinary URL directly
                 const cloudinaryUrl = metadata.cloudinaryData.secure_url;
-                console.log(`Redirecting to Cloudinary URL: ${cloudinaryUrl}`);
+                console.log(`Redirecting to Cloudinary URL`);
                 res.redirect(302, cloudinaryUrl);
                 return;
             } else {
