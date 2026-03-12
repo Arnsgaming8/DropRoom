@@ -780,30 +780,29 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 
                 const publicId = metadata.cloudinaryData.public_id;
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
+                const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dxtujnsmb';
                 
                 if (publicId) {
-                    // Use Admin API to get resource info and check access mode
-                    cloudinary.api.resource(publicId, {
-                        resource_type: resourceType
-                    }).then(resource => {
-                        console.log(`Resource access_type: ${resource.access_mode}`);
-                        
-                        // Generate URL based on actual access mode
-                        const url = cloudinary.url(publicId, {
-                            resource_type: resourceType,
-                            secure: true,
-                            type: resource.access_mode === 'public' ? 'upload' : 'authenticated',
-                            sign_url: resource.access_mode !== 'public'
-                        });
-                        
-                        console.log(`Generated URL type: ${resource.access_mode === 'public' ? 'public' : 'authenticated'}`);
-                        res.redirect(302, url);
-                    }).catch(err => {
-                        console.error('Failed to get resource:', err.message);
-                        // Fallback to original URL
-                        res.redirect(302, metadata.cloudinaryData.secure_url);
-                    });
+                    // Generate a direct URL using Cloudinary's URL format
+                    // This format works for both public and private files with signature
+                    const timestamp = Math.round(Date.now() / 1000);
+                    const apiSecret = process.env.CLOUDINARY_API_SECRET;
                     
+                    // Create the URL path
+                    const path = `${resourceType}/upload`;
+                    
+                    // Generate signature for private access
+                    const signature = crypto.createHash('sha1')
+                        .update(`timestamp=${timestamp}${apiSecret}`)
+                        .digest('hex');
+                    
+                    // Build the direct URL
+                    const directUrl = `https://res.cloudinary.com/${cloudName}/${path}/${publicId}?timestamp=${timestamp}&signature=${signature}`;
+                    
+                    console.log(`Direct URL generated`);
+                    
+                    // Redirect to the direct URL
+                    res.redirect(302, directUrl);
                     return;
                 } else {
                     res.status(404).json({ error: 'File not found' });
