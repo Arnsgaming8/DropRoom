@@ -779,27 +779,27 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 console.log(`Serving file: ${metadata.cloudinaryData.secure_url}`);
                 
                 const publicId = metadata.cloudinaryData.public_id;
-                const resourceType = metadata.cloudinaryData.resource_type || 'raw';
+                const originalUrl = metadata.cloudinaryData.secure_url;
                 
                 if (publicId) {
-                    // Extract correct resource_type from the actual Cloudinary URL path
-                    // URL format: https://res.cloudinary.com/{cloud}/{resource_type}/upload/...
-                    const urlParts = metadata.cloudinaryData.secure_url.split('/');
-                    const uploadIndex = urlParts.indexOf('upload');
-                    const actualResourceType = urlParts[uploadIndex - 1];
+                    // Generate authentication parameters for the original URL
+                    const timestamp = Math.round(Date.now() / 1000);
+                    const apiSecret = process.env.CLOUDINARY_API_SECRET;
                     
-                    console.log(`Using resource_type: ${actualResourceType} (from URL path)`);
+                    // Create signature for the original URL path
+                    const urlParts = originalUrl.split('/');
+                    const pathStart = urlParts.indexOf('upload') + 1;
+                    const pathPart = urlParts.slice(pathStart).join('/');
                     
-                    // Generate signed URL with correct resource type
-                    const signedUrl = cloudinary.url(publicId, {
-                        resource_type: actualResourceType,
-                        secure: true,
-                        sign_url: true,
-                        type: 'authenticated'
-                    });
+                    const signature = crypto.createHash('sha1')
+                        .update(`src=${pathPart}&timestamp=${timestamp}${apiSecret}`)
+                        .digest('hex');
                     
-                    console.log(`Generated signed URL: ${signedUrl.substring(0, 80)}...`);
-                    res.redirect(302, signedUrl);
+                    // Build authenticated URL using original path
+                    const authUrl = `${originalUrl}?timestamp=${timestamp}&signature=${signature}`;
+                    
+                    console.log(`Generated auth URL: ${authUrl.substring(0, 100)}...`);
+                    res.redirect(302, authUrl);
                     return;
                 } else {
                     res.status(404).json({ error: 'File not found' });
