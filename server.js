@@ -782,25 +782,20 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Use Cloudinary's download API - this is the correct way to serve private files
-                    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dxtujnsmb';
+                    // Generate a proper download URL using Cloudinary SDK
+                    // This creates a URL that allows downloading private files
+                    const downloadUrl = cloudinary.url(publicId, {
+                        resource_type: resourceType,
+                        secure: true,
+                        type: 'authenticated',
+                        sign_url: true,
+                        flags: 'attachment',
+                        attachment_filename: filename
+                    });
                     
-                    // Generate signed download URL using Cloudinary's download endpoint
-                    const timestamp = Math.round(Date.now() / 1000);
-                    const apiKey = process.env.CLOUDINARY_API_KEY;
-                    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+                    console.log(`Generated download URL: ${downloadUrl.substring(0, 100)}...`);
                     
-                    // Create the download URL
-                    const downloadPath = `${resourceType}/download/${publicId}`;
-                    const signature = crypto.createHash('sha1')
-                        .update(`download_path=${downloadPath}&timestamp=${timestamp}${apiSecret}`)
-                        .digest('hex');
-                    
-                    const downloadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${downloadPath}?timestamp=${timestamp}&signature=${signature}&api_key=${apiKey}`;
-                    
-                    console.log(`Download URL generated`);
-                    
-                    // Redirect to the download URL
+                    // Redirect browser to the signed download URL
                     res.redirect(302, downloadUrl);
                     return;
                 } else {
