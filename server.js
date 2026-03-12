@@ -782,36 +782,18 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // First, make the file public using Admin API
+                    // Try to make file public
                     cloudinary.api.update(publicId, {
                         resource_type: resourceType,
-                        type: 'upload',
                         access_mode: 'public'
-                    }).then(updateResult => {
-                        console.log('✅ File made public');
-                        
-                        // Now generate a simple public URL
-                        const publicUrl = cloudinary.url(publicId, {
-                            resource_type: resourceType,
-                            secure: true,
-                            type: 'upload'
-                        });
-                        
-                        console.log(`Redirecting to public URL`);
-                        res.redirect(302, publicUrl);
-                    }).catch(updateErr => {
-                        console.log('Could not make public, trying public URL anyway...');
-                        
-                        // Try public URL anyway
-                        const publicUrl = cloudinary.url(publicId, {
-                            resource_type: resourceType,
-                            secure: true,
-                            type: 'upload'
-                        });
-                        
-                        res.redirect(302, publicUrl);
+                    }).then(() => {
+                        console.log('✅ Made file public');
+                    }).catch(err => {
+                        console.log('File may already be public');
                     });
                     
+                    // Use original Cloudinary URL - should work if file is public
+                    res.redirect(302, metadata.cloudinaryData.secure_url);
                     return;
                 } else {
                     res.status(404).json({ error: 'File not found' });
