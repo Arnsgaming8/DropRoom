@@ -782,23 +782,24 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Use uploader.explicit to make file public
-                    cloudinary.uploader.explicit(publicId, {
+                    // Generate download URL using Cloudinary's download API
+                    const downloadUrl = cloudinary.url(publicId, {
                         resource_type: resourceType,
-                        type: 'upload',
-                        access_mode: 'public'
-                    }).then(result => {
-                        console.log('✅ File made public:', result.secure_url);
-                    }).catch(err => {
-                        console.log('Could not update file access:', err.message);
+                        secure: true,
+                        type: 'private', // Explicitly use private type
+                        sign_url: true,
+                        flags: 'attachment',
+                        attachment: filename
                     });
+                    
+                    console.log(`Generated download URL: ${downloadUrl.substring(0, 80)}...`);
+                    
+                    // Redirect to download URL
+                    res.redirect(302, downloadUrl);
+                    return;
+                } else {
+                    res.status(404).json({ error: 'File not found' });
                 }
-                
-                // Use the Cloudinary URL directly
-                const cloudinaryUrl = metadata.cloudinaryData.secure_url;
-                console.log(`Redirecting to Cloudinary URL`);
-                res.redirect(302, cloudinaryUrl);
-                return;
             } else {
                 console.error('Missing Cloudinary URL for file:', filename);
                 console.error('Cloudinary data:', JSON.stringify(metadata.cloudinaryData, null, 2));
