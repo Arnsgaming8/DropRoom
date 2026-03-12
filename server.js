@@ -782,9 +782,17 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Generate a proper signed URL for authenticated access
+                    // Extract correct resource_type from the actual Cloudinary URL path
+                    // URL format: https://res.cloudinary.com/{cloud}/{resource_type}/upload/...
+                    const urlParts = metadata.cloudinaryData.secure_url.split('/');
+                    const uploadIndex = urlParts.indexOf('upload');
+                    const actualResourceType = urlParts[uploadIndex - 1];
+                    
+                    console.log(`Using resource_type: ${actualResourceType} (from URL path)`);
+                    
+                    // Generate signed URL with correct resource type
                     const signedUrl = cloudinary.url(publicId, {
-                        resource_type: resourceType,
+                        resource_type: actualResourceType,
                         secure: true,
                         sign_url: true,
                         type: 'authenticated'
