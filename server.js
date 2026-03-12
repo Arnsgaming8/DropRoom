@@ -782,20 +782,38 @@ app.get('/file/:roomId/:filename', (req, res) => {
                 const resourceType = metadata.cloudinaryData.resource_type || 'raw';
                 
                 if (publicId) {
-                    // Try to make file public
-                    cloudinary.api.update(publicId, {
-                        resource_type: resourceType,
-                        access_mode: 'public'
-                    }).then(() => {
-                        console.log('✅ Made file public');
-                    }).catch(err => {
-                        console.log('File may already be public');
+                    // Use Cloudinary search API to find the file
+                    const searchUrl = `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME || 'dxtujnsmb'}/resources/${resourceType}`;
+                    
+                    // Use basic auth with API credentials
+                    const auth = Buffer.from(`${process.env.CLOUDINARY_API_KEY}:${process.env.CLOUDINARY_API_SECRET}`).toString('base64');
+                    
+                    fetch(searchUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Basic ${auth}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }).then(response => response.json())
+                    .then(data => {
+                        console.log('Resources found:', data.resources?.length || 0);
+                        
+                        // Find our file
+                        const ourFile = data.resources?.find(r => r.public_id === publicId);
+                        
+                        if (ourFile && ourFile.secure_url) {
+                            console.log('✅ Found file, redirecting to public URL');
+                            res.redirect(302, ourFile.secure_url);
+                        } else {
+                            throw new Error('File not found in search');
+                        }
+                    })
+                    .catch(err => {
+                        console.log('Search failed, trying direct URL...');
+                        // Fallback to original URL
+                        res.redirect(302, metadata.cloudinaryData.secure_url);
                     });
                     
-                    // Use the original Cloudinary URL - files uploaded with access_mode: public should work
-                    const cloudinaryUrl = metadata.cloudinaryData.secure_url;
-                    console.log(`Redirecting to: ${cloudinaryUrl.substring(0, 80)}...`);
-                    res.redirect(302, cloudinaryUrl);
                     return;
                 } else {
                     res.status(404).json({ error: 'File not found' });
